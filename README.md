@@ -81,5 +81,6 @@ Check:
 - the lock is in Bluetooth range
 - your Home Assistant Bluetooth adapter or ESPHome proxy can make active connections
 - the lock is not only being seen as `connectable: false`
+- Unsupported device, in which case you could try reporting an issue here
 
 *Full disclaimer: Most of the improvements from the original were by GPT 5.4 Codex. However, I personally use this integration and I am happy with it, so I am sharing it in case it could be useful to anyone else.*
