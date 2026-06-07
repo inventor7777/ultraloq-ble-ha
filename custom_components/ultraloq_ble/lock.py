@@ -101,6 +101,15 @@ class UtecLock(LockEntity):
         """False if entity pushes its state to HA."""
         return False
 
+    @property
+    def available(self) -> bool:
+        """Return availability based on BLE presence and known lock state."""
+
+        return (
+            getattr(self.lock, "_ha_available", True)
+            and self.lock.lock_status != DeviceLockStatus.NOTSET.value
+        )
+
     # @property
     # def device_info(self) -> dict[str, Any]:
     #     """Return device registry information for this entity."""
