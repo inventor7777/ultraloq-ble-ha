@@ -58,6 +58,8 @@ async def async_setup_entry(
 class UtecLock(LockEntity):
     """Representation of Ultraloq Device."""
 
+    _transition_timeout_seconds = 60
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -75,6 +77,7 @@ class UtecLock(LockEntity):
         self.poll_offset = poll_offset
         self._attr_is_locking = False
         self._attr_is_unlocking = False
+        self._transition_timeout_cancel = None
         self.update_track_cancel = None
         self._cancel_unavailable_track = None
         self._attributes = {}
@@ -171,6 +174,35 @@ class UtecLock(LockEntity):
 
         self._attr_is_locking = False
         self._attr_is_unlocking = False
+        if self._transition_timeout_cancel:
+            self._transition_timeout_cancel()
+            self._transition_timeout_cancel = None
+
+    @callback
+    def _schedule_transition_timeout(self) -> None:
+        """Clear transitional state if no final lock state arrives in time."""
+
+        if self._transition_timeout_cancel:
+            self._transition_timeout_cancel()
+        self._transition_timeout_cancel = async_call_later(
+            self.hass,
+            timedelta(seconds=self._transition_timeout_seconds),
+            self._handle_transition_timeout,
+        )
+
+    @callback
+    def _handle_transition_timeout(self, _now) -> None:
+        """Clear stale transitional state after a timeout."""
+
+        self._transition_timeout_cancel = None
+        if self._attr_is_locking or self._attr_is_unlocking:
+            LOGGER.warning(
+                "Clearing stale transition state for %s after %s seconds",
+                self.name,
+                self._transition_timeout_seconds,
+            )
+            self._clear_transition_state()
+            self.async_write_ha_state()
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
@@ -204,6 +236,7 @@ class UtecLock(LockEntity):
         """Run when entity will be removed from hass."""
         if self._handle_lock_state_update in self.lock._ha_state_callbacks:
             self.lock._ha_state_callbacks.remove(self._handle_lock_state_update)
+        self._clear_transition_state()
         if self.update_track_cancel:
             self.update_track_cancel()
         return await super().async_will_remove_from_hass()
@@ -373,6 +406,7 @@ class UtecLock(LockEntity):
         try:
             self._attr_is_locking = True
             self._attr_is_unlocking = False
+            self._schedule_transition_timeout()
             self.async_write_ha_state()
             await self.lock.async_lock()
             self._sync_state_from_lock()
@@ -388,6 +422,7 @@ class UtecLock(LockEntity):
         try:
             self._attr_is_unlocking = True
             self._attr_is_locking = False
+            self._schedule_transition_timeout()
             self.async_write_ha_state()
             await self.lock.async_unlock()
             self._sync_state_from_lock()
