@@ -11,7 +11,7 @@ Entities currently exposed per lock:
 - `sensor.battery_level`
 - `sensor`
 - `sensor.lock_mode`
-- `sensor.bolt_status` when the model reports meaningful bolt status
+- `sensor.bolt_status` when the model reports meaningful bolt status. U-Bolt Pros do not.
 - `number.autolock_time`
 
 Integration service:
