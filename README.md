@@ -75,6 +75,8 @@ Notes:
 - The integration exposes the raw autolock controls. The lock seems to discard some seconds inputs, if I could find all of the accepted inputs we could add a proper selector.
 - State updates after a lock or unlock are very slow and dependent on refresh interval. Perhaps there is a way to subscribe to Ultraloq BLE pushes, but I do not have the tools to reverse engineer such a thing.
 - Shelly Bluetooth proxies are incapable of starting an active GATT BLE connection, so you will need either a USB Bluetooth adapter or an ESPHome device with `active: true` enabled in the Bluetooth configuration.
+- There is a Bleak depreciation warning in the debug logs. I am aware of this but I'd like to get the rest of the implementation stable before attacking that.
+- Some locks randomly go offline due to them not responding to `ADMIN_LOGIN`. I am working on a fix, but it only happens occasionally.
 
 ### Lock shows up but will not operate
 
