@@ -337,6 +337,7 @@ class UtecLock(LockEntity):
         self.lock._ha_available = False
         self._notify_lock_state_listeners()
         self.async_write_ha_state()
+        self.schedule_update_lock_state(self.scaninterval)
 
     @callback
     def _available_callback(
@@ -368,12 +369,11 @@ class UtecLock(LockEntity):
         if self.update_track_cancel:
             self.update_track_cancel()
             self.update_track_cancel = None
-        if self._attr_available:
-            self.update_track_cancel = async_call_later(
-                self.hass,
-                timedelta(seconds=offset),
-                self._schedule_request_update,
-            )
+        self.update_track_cancel = async_call_later(
+            self.hass,
+            timedelta(seconds=offset),
+            self._schedule_request_update,
+        )
 
     @callback
     def _schedule_request_update(self, _now) -> None:
