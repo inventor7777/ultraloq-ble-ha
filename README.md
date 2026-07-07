@@ -4,6 +4,10 @@ This is a [forked](https://github.com/maeneak/utecio-ha) Home Assistant custom i
 
 I really wanted to have local control over my U-Bolt Pro locks, and the original integration was simply nonfunctional for that. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. One other notable improvement is that autolock status and battery level are now first class sensors instead of being buried in the attributes. This integration should have all of the original features *(plus first class sensors)* for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
 
+## Requirements
+- Active (GATT) Bluetooth support in Home Assistant, whether through a [local USB adapter](https://a.co/d/09RioHgV) or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/).
+- Internet connection on initial setup to get lock info from the Xthings API - this will be user controlled in the future.
+
 ## Features
 
 Entities currently exposed per lock:
