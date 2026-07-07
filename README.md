@@ -7,7 +7,7 @@
 
 This is a [forked](https://github.com/maeneak/utecio-ha) Home Assistant custom integration for Ultraloq / U-Tec / Xthings BLE locks.
 
-I really wanted to have local control over my U-Bolt Pro locks, and the original integration was simply nonfunctional for that. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addtion to extending lock support, autolock status and battery level are now first class sensors instead of being buried in the attributes. This integration should have all of the original features *(plus first class sensors)* for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
+I really wanted to have local control over my U-Bolt Pro locks, and the original integration wouldn't even start the config process. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addtion to extending lock support, autolock status and battery level are now first class sensors instead of being buried in the attributes. This integration should have all of the original features *(plus first class sensors)* for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
 
 ## Requirements
 - Active (GATT) Bluetooth support in Home Assistant, whether through [your host's built in Bluetooth](https://www.home-assistant.io/integrations/bluetooth/), a [local USB adapter](https://a.co/d/09RioHgV), or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/).
