@@ -1,4 +1,9 @@
-# Ultraloq BLE
+<h1 align="center">Ultraloq BLE</h1>
+
+<p align="center"><b>Control your Bluetooth capable U-Tec locks locally and natively in Home Assistant.</b>
+</p>
+
+---
 
 This is a [forked](https://github.com/maeneak/utecio-ha) Home Assistant custom integration for Ultraloq / U-Tec / Xthings BLE locks.
 
