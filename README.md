@@ -16,12 +16,12 @@ I really wanted to have local control over my U-Bolt Pro locks, and the original
 ## Features
 
 Entities currently exposed per lock:
-- `lock`
-- `sensor.battery_level`
-- `sensor`
-- `sensor.lock_mode`
-- `sensor.bolt_status` when the model reports meaningful bolt status. U-Bolt Pros do not.
+- `lock.name_of_lock`
 - `number.autolock_time`
+- `select.lock_mode` (when supported by lock)
+- `sensor.battery_level`
+- `sensor.lock_mode`
+- `sensor.bolt_status` (when the model reports meaningful bolt status. U-Bolt Pros do not.)
 
 Integration service:
 - `ultraloq_ble.refresh_locks` refreshes cached lock metadata from the cloud and reloads the integration.
