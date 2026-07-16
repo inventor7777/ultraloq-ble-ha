@@ -437,12 +437,6 @@ class UtecLock(LockEntity):
             self._sync_state_from_lock()
             self._notify_lock_state_listeners()
             self.async_write_ha_state()
-            if self.lock.capabilities.autolock and self.lock.autolock_time:
-                async_call_later(
-                    self.hass,
-                    timedelta(seconds=self.lock.autolock_time),
-                    lambda Now: self._set_state_locked(),
-                )
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             self._clear_transition_state()
             self.async_write_ha_state()
@@ -451,8 +445,3 @@ class UtecLock(LockEntity):
     async def async_open(self, **kwargs: Any) -> None:
         """Open the door latch."""
         return await self.async_unlock(**kwargs)
-
-    def _set_state_locked(self):
-        LOGGER.debug("Autolock %s", self.name)
-        self._attr_is_locked = True
-        self.async_write_ha_state()
