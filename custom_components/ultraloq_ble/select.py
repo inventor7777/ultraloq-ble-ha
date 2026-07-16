@@ -15,14 +15,20 @@ from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceLockStatus, DeviceLockWorkMode
 
 
+def _lock_mode_label(mode: DeviceLockWorkMode) -> str:
+    """Return the Home Assistant label for a lock mode."""
+
+    return mode.name.replace("_", " ").title()
+
+
 def _supported_lock_mode_options(lock: UtecBleLock) -> list[str]:
     """Return the supported lock-mode options for a specific lock."""
 
-    options = [DeviceLockWorkMode.NORMAL.name]
+    options = [_lock_mode_label(DeviceLockWorkMode.NORMAL)]
     if getattr(lock.capabilities, "passage", False):
-        options.append(DeviceLockWorkMode.PASSAGE.name)
+        options.append(_lock_mode_label(DeviceLockWorkMode.PASSAGE))
     if getattr(lock.capabilities, "lockout", False):
-        options.append(DeviceLockWorkMode.LOCKOUT.name)
+        options.append(_lock_mode_label(DeviceLockWorkMode.LOCKOUT))
     return options
 
 
@@ -77,7 +83,7 @@ class UltraloqLockModeSelect(SelectEntity):
             mode = DeviceLockWorkMode(self.lock.lock_mode)
         except ValueError:
             return None
-        return None if mode is DeviceLockWorkMode.NOTSET else mode.name
+        return None if mode is DeviceLockWorkMode.NOTSET else _lock_mode_label(mode)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -100,7 +106,7 @@ class UltraloqLockModeSelect(SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Set the lock work mode."""
-        mode = DeviceLockWorkMode[option]
+        mode = DeviceLockWorkMode[option.upper().replace(" ", "_")]
         try:
             await self.lock.async_set_workmode(mode)
         except (UtecBleDeviceError, UtecBleNotFoundError):
