@@ -24,6 +24,14 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 RESPONSE_TIMEOUT_SECONDS = 15
 
 
+def _redacted_password(password: str | None) -> str:
+    """Return a redacted password marker for debug logs."""
+
+    if not password:
+        return ""
+    return "*" * len(password)
+
+
 class UtecBleNotFoundError(Exception):
     def __init__(self, message: str, detail: str | None = None) -> None:
         super().__init__(message)
@@ -131,7 +139,7 @@ class UtecBleDevice:
             new_device.mac_uuid,
             new_device.wurx_uuid,
             new_device.uid,
-            new_device.password,
+            _redacted_password(new_device.password),
         )
 
         return new_device
@@ -376,7 +384,7 @@ class UtecBleRequest:
         logger.debug(
             "Building auth payload uid=%s password=%s password_len=%s for %s",
             uid,
-            password,
+            _redacted_password(password),
             len(password) if password else 0,
             self.command.name,
         )
@@ -447,7 +455,7 @@ class UtecBleRequest:
                 self.encrypted_package(self.aes_key).hex(),
                 self.auth_required,
                 self.device.uid,
-                self.device.password,
+                _redacted_password(self.device.password),
             )
             await client.start_notify(self.uuid, self.response._receive_write_response)
             await client.write_gatt_char(
