@@ -49,6 +49,7 @@ class UltraloqAutolockNumber(NumberEntity):
     _attr_mode = NumberMode.BOX
     _attr_device_class = NumberDeviceClass.DURATION
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_icon = "mdi:timer-lock-outline"
 
     def __init__(self, lock: UtecBleLock) -> None:
         """Initialize the number entity."""

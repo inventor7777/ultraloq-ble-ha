@@ -60,7 +60,7 @@ class UltraloqLockModeSelect(SelectEntity):
     _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_name = "Lock Mode"
-    _attr_icon = "mdi:lock-cog"
+    _attr_icon = "mdi:lock-smart"
 
     def __init__(self, lock: UtecBleLock) -> None:
         """Initialize the lock-mode select entity."""
