@@ -14,16 +14,9 @@ from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
 from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceLockStatus, DeviceLockWorkMode
 
-
-def _supported_lock_mode_options(lock: UtecBleLock) -> list[str]:
-    """Return the supported lock-mode options for a specific lock."""
-
-    options = [DeviceLockWorkMode.NORMAL.name]
-    if getattr(lock.capabilities, "passage", False):
-        options.append(DeviceLockWorkMode.PASSAGE.name)
-    if getattr(lock.capabilities, "lockout", False):
-        options.append(DeviceLockWorkMode.LOCKOUT.name)
-    return options
+LOCK_MODE_OPTIONS = [
+    mode.name for mode in DeviceLockWorkMode if mode is not DeviceLockWorkMode.NOTSET
+]
 
 
 async def async_setup_entry(
@@ -36,11 +29,6 @@ async def async_setup_entry(
     entities: list[UltraloqLockModeSelect] = []
 
     for lock in locks:
-        if not (
-            getattr(lock.capabilities, "passage", False)
-            or getattr(lock.capabilities, "lockout", False)
-        ):
-            continue
         if not hasattr(lock, "_ha_state_callbacks"):
             lock._ha_state_callbacks = []
         entities.append(UltraloqLockModeSelect(lock))
@@ -55,12 +43,12 @@ class UltraloqLockModeSelect(SelectEntity):
     _attr_has_entity_name = True
     _attr_name = "Lock Mode"
     _attr_icon = "mdi:lock-cog"
+    _attr_options = LOCK_MODE_OPTIONS
 
     def __init__(self, lock: UtecBleLock) -> None:
         """Initialize the lock-mode select entity."""
         self.lock = lock
         self._attr_unique_id = f"ul_{self.lock.mac_uuid}_lock_mode_select"
-        self._attr_options = _supported_lock_mode_options(lock)
 
     @property
     def available(self) -> bool:
