@@ -82,6 +82,7 @@ class UtecLock(LockEntity):
         self._cancel_unavailable_track = None
         self._attributes = {}
         self._update_in_progress = False
+        self._update_requested = False
         self._attr_supported_features = LockEntityFeature(0)
         if not hasattr(self.lock, "_ha_state_callbacks"):
             self.lock._ha_state_callbacks = []
@@ -378,6 +379,9 @@ class UtecLock(LockEntity):
     @callback
     def _schedule_request_update(self, _now) -> None:
         """Schedule a refresh task safely from any callback context."""
+        if self._update_requested or self._update_in_progress:
+            return
+        self._update_requested = True
         self.hass.add_job(self.request_update)
 
     @callback
@@ -387,17 +391,17 @@ class UtecLock(LockEntity):
             self.update_track_cancel()
             self.update_track_cancel = None
 
-        if (
-            self.enabled
-            and self.hass
-            and not self._update_staged
-            and not self._update_in_progress
-        ):
+        if not self.enabled or not self.hass:
+            self._update_requested = False
+            return
+
+        if not self._update_staged and not self._update_in_progress:
             self.schedule_update_ha_state(force_refresh=True)
 
     async def async_update(self, **kwargs):
         """Update the lock."""
         LOGGER.debug("Updating %s with scan interval: %s", self.name, self.scaninterval)
+        self._update_requested = False
         self._update_in_progress = True
         try:
             await self.lock.async_update_status()
