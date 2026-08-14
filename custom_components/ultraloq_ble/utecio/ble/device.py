@@ -32,6 +32,20 @@ def _redacted_password(password: str | None) -> str:
     return "*" * len(password)
 
 
+def _present_key_methods(client: BleakClient) -> str:
+    """Return the available lock key-exchange characteristics."""
+
+    methods: list[str] = []
+    for name, uuid in (
+        ("STATIC", DeviceKeyUUID.STATIC.value),
+        ("MD5", DeviceKeyUUID.MD5.value),
+        ("ECC", DeviceKeyUUID.ECC.value),
+    ):
+        if client.services.get_characteristic(uuid):
+            methods.append(name)
+    return ",".join(methods) if methods else "none"
+
+
 class UtecBleNotFoundError(Exception):
     def __init__(self, message: str, detail: str | None = None) -> None:
         super().__init__(message)
@@ -182,8 +196,27 @@ class UtecBleDevice:
 
             self.is_busy = True
             try:
+                self.debug(
+                    "(%s) Resolving BLE device for lock address=%s wurx=%s pending_requests=%s",
+                    self.mac_uuid,
+                    self.mac_uuid,
+                    self.wurx_uuid or "none",
+                    len(self._requests),
+                )
                 if not (device := await self._get_bledevice(self.mac_uuid)):
                     raise BleakNotFoundError()
+                self.debug(
+                    "(%s) Resolved BLE device name=%s address=%s details=%s",
+                    self.mac_uuid,
+                    getattr(device, "name", None),
+                    getattr(device, "address", None),
+                    getattr(device, "details", None),
+                )
+                self.debug(
+                    "(%s) Establishing direct BLE connection max_attempts=%s",
+                    self.mac_uuid,
+                    1 if self.wurx_uuid else 2,
+                )
                 client = await establish_connection(
                     client_class=BleakClient,
                     device=device,
@@ -192,13 +225,28 @@ class UtecBleDevice:
                     ble_device_callback=self._brc_get_lock_device,
                 )
             except (BleakNotFoundError, BleakError, TimeoutError) as first_err:
+                self.debug(
+                    "(%s) Direct BLE connection failed: %s: %s",
+                    self.mac_uuid,
+                    type(first_err).__name__,
+                    first_err,
+                )
                 try:
                     if not self.wurx_uuid:
                         raise
 
+                    self.debug("(%s) Attempting wake-up path via %s", self.mac_uuid, self.wurx_uuid)
                     await self.async_wakeup_device()
                     if not (device := await self._get_bledevice(self.mac_uuid)):
                         raise BleakNotFoundError("Wakeup device not found.")
+                    self.debug(
+                        "(%s) Re-resolved BLE device after wake-up name=%s address=%s details=%s",
+                        self.mac_uuid,
+                        getattr(device, "name", None),
+                        getattr(device, "address", None),
+                        getattr(device, "details", None),
+                    )
+                    self.debug("(%s) Establishing post-wake BLE connection", self.mac_uuid)
 
                     client = await establish_connection(
                         client_class=BleakClient,
@@ -220,10 +268,25 @@ class UtecBleDevice:
                     ) from None
 
             try:
+                self.debug(
+                    "(%s) Connected. Client address=%s service_count=%s key_methods=%s",
+                    self.mac_uuid,
+                    getattr(client, "address", None),
+                    len(getattr(client, "services", []) or []),
+                    _present_key_methods(client),
+                )
+                self.debug("(%s) Starting shared key negotiation", self.mac_uuid)
                 aes_key = await UtecBleDeviceKey.get_shared_key(
                     client=client, device=self
                 )
-            except Exception:
+                self.debug("(%s) Shared key negotiation complete key_len=%s", self.mac_uuid, len(aes_key))
+            except Exception as err:
+                self.debug(
+                    "(%s) Shared key negotiation failed: %s: %s",
+                    self.mac_uuid,
+                    type(err).__name__,
+                    err,
+                )
                 raise self.error(
                     UtecBleDeviceError(
                         f"Error communicating with device {self.name}({self.mac_uuid}).",
@@ -274,11 +337,22 @@ class UtecBleDevice:
             self.is_busy = False
 
     async def _get_bledevice(self, address: str) -> BLEDevice:
+        self.debug("(%s) Looking up BLE device for address=%s", self.mac_uuid, address)
         device = (
             await self.async_bledevice_callback(address)
             if self.async_bledevice_callback
             else await get_device(address)
         )
+        if device is None:
+            self.debug("(%s) BLE lookup returned no device for %s", self.mac_uuid, address)
+        else:
+            self.debug(
+                "(%s) BLE lookup resolved address=%s as name=%s device_address=%s",
+                self.mac_uuid,
+                address,
+                getattr(device, "name", None),
+                getattr(device, "address", None),
+            )
         return device
 
     async def _brc_get_lock_device(self) -> BLEDevice:
@@ -718,8 +792,16 @@ class UtecBleResponse:
 class UtecBleDeviceKey:
     @staticmethod
     async def get_shared_key(client: BleakClient, device: UtecBleDevice) -> bytes:
+        device.debug(
+            "(%s) Inspecting key characteristics STATIC=%s MD5=%s ECC=%s",
+            client.address,
+            bool(client.services.get_characteristic(DeviceKeyUUID.STATIC.value)),
+            bool(client.services.get_characteristic(DeviceKeyUUID.MD5.value)),
+            bool(client.services.get_characteristic(DeviceKeyUUID.ECC.value)),
+        )
         if client.services.get_characteristic(DeviceKeyUUID.STATIC.value):
             device.debug("(%s) Using STATIC key exchange.", client.address)
+            device.debug("(%s) Reading STATIC key characteristic %s", client.address, DeviceKeyUUID.STATIC.value)
             secret = await client.read_gatt_char(DeviceKeyUUID.STATIC.value)
             device.debug("(%s) STATIC key secret:%s", client.address, secret.hex())
             return bytearray(b"Anviz.ut") + secret
@@ -756,6 +838,7 @@ class UtecBleDeviceKey:
 
             device.debug("(%s) Starting ECC notify.", client.address)
             await client.start_notify(DeviceKeyUUID.ECC.value, notification_handler)
+            device.debug("(%s) ECC notify active on %s", client.address, DeviceKeyUUID.ECC.value)
             device.debug("(%s) Writing ECC public key X=%s", client.address, pub_x.hex())
             await client.write_gatt_char(DeviceKeyUUID.ECC.value, pub_x)
             device.debug("(%s) Writing ECC public key Y=%s", client.address, pub_y.hex())
@@ -786,6 +869,7 @@ class UtecBleDeviceKey:
     @staticmethod
     async def get_md5_key(client: BleakClient, device: UtecBleDevice) -> bytes:
         try:
+            device.debug("(%s) Reading MD5 key characteristic %s", client.address, DeviceKeyUUID.MD5.value)
             secret = await client.read_gatt_char(DeviceKeyUUID.MD5.value)
 
             device.debug("(%s) MD5 key secret: %s", client.address, secret.hex())
