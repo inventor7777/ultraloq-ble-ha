@@ -404,7 +404,9 @@ class UtecLock(LockEntity):
         self._update_requested = False
         self._update_in_progress = True
         try:
-            await self.lock.async_update_status()
+            if not await self.lock.async_update_status():
+                LOGGER.debug("Skipping state sync for %s because refresh was already in progress", self.name)
+                return
             self._sync_state_from_lock()
             LOGGER.info("(%s) Updated.", self.name)
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:

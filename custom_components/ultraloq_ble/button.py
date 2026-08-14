@@ -68,7 +68,10 @@ class UltraloqRescanButton(ButtonEntity):
         """Force an immediate state refresh from the lock."""
 
         try:
-            await self.lock.async_update_status()
+            if not await self.lock.async_update_status():
+                raise HomeAssistantError(
+                    f"Skipped rescan for {self.lock.name}: refresh already in progress."
+                )
         except (UtecBleDeviceError, UtecBleNotFoundError) as err:
             raise HomeAssistantError(
                 f"Failed to rescan {self.lock.name}: {err}"

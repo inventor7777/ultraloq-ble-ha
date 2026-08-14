@@ -87,7 +87,7 @@ class UtecBleLock(UtecBleDevice):
                 self.mac_uuid,
                 self.name,
             )
-            return
+            return False
         self.debug("(%s) %s - Updating lock data...", self.mac_uuid, self.name)
         self.add_request(
             UtecBleRequest(BLECommandCode.ADMIN_LOGIN, device=self, auth_required=True)
@@ -104,3 +104,4 @@ class UtecBleLock(UtecBleDevice):
         # self.add_request(BleRequest(device=self, command=BLECommandCode.READ_TIME))
         await self.send_requests()
         self.debug("(%s) %s - Update Successful.", self.mac_uuid, self.name)
+        return True
