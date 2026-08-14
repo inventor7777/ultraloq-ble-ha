@@ -81,6 +81,13 @@ class UtecBleLock(UtecBleDevice):
         await self.send_requests()
 
     async def async_update_status(self):
+        if self.is_busy:
+            self.debug(
+                "(%s) %s - Skipping overlapping status refresh while lock is busy.",
+                self.mac_uuid,
+                self.name,
+            )
+            return
         self.debug("(%s) %s - Updating lock data...", self.mac_uuid, self.name)
         self.add_request(
             UtecBleRequest(BLECommandCode.ADMIN_LOGIN, device=self, auth_required=True)
