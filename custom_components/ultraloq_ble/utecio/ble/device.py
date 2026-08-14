@@ -272,7 +272,7 @@ class UtecBleDevice:
                     "(%s) Connected. Client address=%s service_count=%s key_methods=%s",
                     self.mac_uuid,
                     getattr(client, "address", None),
-                    len(getattr(client, "services", []) or []),
+                    len(getattr(client.services, "services", {}) or {}),
                     _present_key_methods(client),
                 )
                 self.debug("(%s) Starting shared key negotiation", self.mac_uuid)
