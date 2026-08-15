@@ -571,7 +571,16 @@ class UtecBleRequest:
         except Exception as e:
             raise self.device.error(e)
         finally:
-            await client.stop_notify(self.uuid)
+            try:
+                await client.stop_notify(self.uuid)
+            except Exception as err:
+                logger.debug(
+                    "(%s) Could not stop notifications for %s: %s: %s",
+                    self.device.mac_uuid,
+                    self.command.name,
+                    type(err).__name__,
+                    err,
+                )
 
 
 class UtecBleResponse:
