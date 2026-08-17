@@ -404,7 +404,7 @@ class UtecLock(LockEntity):
         self._update_requested = False
         self._update_in_progress = True
         try:
-            if not await self.lock.async_update_status():
+            if not await self.lock.async_update_status(skip_if_busy=True):
                 LOGGER.debug("Skipping state sync for %s because refresh was already in progress", self.name)
                 return
             self._sync_state_from_lock()

@@ -22,6 +22,7 @@ from Crypto.Cipher import AES
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 RESPONSE_TIMEOUT_SECONDS = 15
+COMMAND_LOCK_TIMEOUT_SECONDS = 90
 
 
 def _redacted_password(password: str | None) -> str:
@@ -73,13 +74,8 @@ class UtecBleDeviceError(Exception):
         return f"{self.args[0]} {self.detail}" if self.detail else str(self.args[0])
 
 
-class UtecBleDeviceBusyError(Exception):
-    def __init__(self, message: str, detail: str | None = None) -> None:
-        super().__init__(message)
-        self.detail = detail
-
-    def __str__(self) -> str:
-        return f"{self.args[0]} {self.detail}" if self.detail else str(self.args[0])
+class UtecBleDeviceBusyError(UtecBleDeviceError):
+    """Raised when a previous command sequence does not finish in time."""
 
 
 class UtecBleDevice:
@@ -104,6 +100,8 @@ class UtecBleDevice:
             device_model
         )
         self._requests: list[UtecBleRequest] = []
+        self._active_response: UtecBleResponse | None = None
+        self._command_lock = asyncio.Lock()
         self.config: dict[str, Any]
         self.async_bledevice_callback = async_bledevice_callback
         self.error_callback = error_callback
@@ -115,8 +113,13 @@ class UtecBleDevice:
         self.bolt_status: int = -1
         self.sn: str = ""
         self.calendar: datetime.datetime
-        self.is_busy = False
         self.device_time_offset: datetime.timedelta
+
+    @property
+    def is_busy(self) -> bool:
+        """Return whether another command sequence owns this lock."""
+
+        return self._command_lock.locked()
 
     @staticmethod
     def _resolve_capabilities(device_model: str) -> DeviceDefinition:
@@ -183,8 +186,38 @@ class UtecBleDevice:
         else:
             self._requests.append(request)
 
+    async def execute_requests(
+        self, queue_requests: Callable[[], None], skip_if_busy: bool = False
+    ) -> bool:
+        """Queue and send one command sequence without interleaving requests."""
+
+        if skip_if_busy and self.is_busy:
+            self.debug("(%s) Skipping request sequence while lock is busy.", self.mac_uuid)
+            return False
+
+        try:
+            await asyncio.wait_for(
+                self._command_lock.acquire(), timeout=COMMAND_LOCK_TIMEOUT_SECONDS
+            )
+        except TimeoutError:
+            raise self.error(
+                UtecBleDeviceBusyError(
+                    f"Unable to process requests for {self.name}({self.mac_uuid}).",
+                    f"Lock stayed busy for {COMMAND_LOCK_TIMEOUT_SECONDS} seconds.",
+                )
+            ) from None
+
+        try:
+            queue_requests()
+            if not self._requests:
+                return False
+            return await self.send_requests()
+        finally:
+            self._command_lock.release()
+
     async def send_requests(self) -> bool:
         client: BleakClient = None
+        notifications_started = False
         try:
             if len(self._requests) < 1:
                 raise self.error(
@@ -194,7 +227,6 @@ class UtecBleDevice:
                     )
                 )
 
-            self.is_busy = True
             try:
                 self.debug(
                     "(%s) Resolving BLE device for lock address=%s wurx=%s pending_requests=%s",
@@ -294,6 +326,14 @@ class UtecBleDevice:
                     )
                 ) from None
 
+            async def dispatch_notification(sender, data):
+                if response := self._active_response:
+                    await response._receive_write_response(sender, data)
+
+            self.debug("(%s) Starting data notifications", self.mac_uuid)
+            await client.start_notify(DeviceServiceUUID.DATA.value, dispatch_notification)
+            notifications_started = True
+
             for request in self._requests[:]:
                 if not request.sent or not request.response.completed:
                     # logger.debug("(%s) Sending command - %s (%s)",self.mac_uuid,request.command.name,request.package.hex())
@@ -319,12 +359,28 @@ class UtecBleDevice:
                             )
                         ) from None
 
+            return True
+
         except Exception:  # unhandled
             raise
 
         finally:
             self._requests.clear()
+            self._active_response = None
             if client:
+                if notifications_started:
+                    self.debug("(%s) Stopping data notifications", self.mac_uuid)
+                    try:
+                        await client.stop_notify(DeviceServiceUUID.DATA.value)
+                    except Exception as err:
+                        self.debug(
+                            "(%s) Could not stop data notifications: %s: %s",
+                            self.mac_uuid,
+                            type(err).__name__,
+                            err,
+                        )
+                    else:
+                        self.debug("(%s) Data notifications stopped", self.mac_uuid)
                 try:
                     await client.disconnect()
                 except TimeoutError as err:
@@ -341,7 +397,6 @@ class UtecBleDevice:
                         self.name,
                         err,
                     )
-            self.is_busy = False
 
     async def _get_bledevice(self, address: str) -> BLEDevice:
         self.debug("(%s) Looking up BLE device for address=%s", self.mac_uuid, address)
@@ -549,7 +604,7 @@ class UtecBleRequest:
                 self.device.uid,
                 _redacted_password(self.device.password),
             )
-            await client.start_notify(self.uuid, self.response._receive_write_response)
+            self.device._active_response = self.response
             await client.write_gatt_char(
                 self.uuid, self.encrypted_package(self.aes_key)
             )
@@ -589,27 +644,8 @@ class UtecBleRequest:
         except Exception as e:
             raise self.device.error(e)
         finally:
-            self.device.debug(
-                "(%s) Stopping notifications for %s",
-                self.device.mac_uuid,
-                self.command.name,
-            )
-            try:
-                await client.stop_notify(self.uuid)
-            except Exception as err:
-                self.device.debug(
-                    "(%s) Could not stop notifications for %s: %s: %s",
-                    self.device.mac_uuid,
-                    self.command.name,
-                    type(err).__name__,
-                    err,
-                )
-            else:
-                self.device.debug(
-                    "(%s) Notifications stopped for %s",
-                    self.device.mac_uuid,
-                    self.command.name,
-                )
+            if self.device._active_response is self.response:
+                self.device._active_response = None
 
 
 class UtecBleResponse:
