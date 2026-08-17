@@ -304,7 +304,14 @@ class UtecBleDevice:
                         await request._get_response(client)
                         self._requests.remove(request)
 
-                    except Exception:
+                    except Exception as err:
+                        self.debug(
+                            "(%s) Request %s failed: %s: %s",
+                            self.mac_uuid,
+                            request.command.name,
+                            type(err).__name__,
+                            err,
+                        )
                         raise self.error(
                             UtecBleDeviceError(
                                 f"Error communicating with device {self.name}({self.mac_uuid}).",
@@ -343,6 +350,17 @@ class UtecBleDevice:
             if self.async_bledevice_callback
             else await get_device(address)
         )
+        if device and (
+            str(device.address).replace(":", "").lower()
+            != address.replace(":", "").lower()
+        ):
+            self.debug(
+                "(%s) BLE lookup for %s returned mismatched device %s; ignoring it",
+                self.mac_uuid,
+                address,
+                device.address,
+            )
+            return None
         if device is None:
             self.debug("(%s) BLE lookup returned no device for %s", self.mac_uuid, address)
         else:
@@ -571,15 +589,26 @@ class UtecBleRequest:
         except Exception as e:
             raise self.device.error(e)
         finally:
+            self.device.debug(
+                "(%s) Stopping notifications for %s",
+                self.device.mac_uuid,
+                self.command.name,
+            )
             try:
                 await client.stop_notify(self.uuid)
             except Exception as err:
-                logger.debug(
+                self.device.debug(
                     "(%s) Could not stop notifications for %s: %s: %s",
                     self.device.mac_uuid,
                     self.command.name,
                     type(err).__name__,
                     err,
+                )
+            else:
+                self.device.debug(
+                    "(%s) Notifications stopped for %s",
+                    self.device.mac_uuid,
+                    self.command.name,
                 )
 
 
