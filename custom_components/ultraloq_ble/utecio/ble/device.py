@@ -471,6 +471,7 @@ class UtecBleRequest:
         device: UtecBleDevice = None,
         data: bytes = bytes(),
         auth_required: bool = False,
+        delay_after: float = 0,
     ):
         if command in {
             BLECommandCode.ADMIN_LOGIN,
@@ -490,6 +491,7 @@ class UtecBleRequest:
         self.sent = False
         self.data = data
         self.auth_required = auth_required
+        self.delay_after = delay_after
         self._auth_appended = False
         self._build_packet()
 
@@ -641,6 +643,8 @@ class UtecBleRequest:
                         f"Command {self.command.name} was rejected by the lock.",
                     )
                 )
+            if self.delay_after:
+                await asyncio.sleep(self.delay_after)
         except Exception as e:
             raise self.device.error(e)
         finally:

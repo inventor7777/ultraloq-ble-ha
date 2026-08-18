@@ -4,6 +4,8 @@ from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import to_byte_array
 from .device import UtecBleDevice, UtecBleRequest
 
+STATUS_SETTLE_SECONDS = 2
+
 
 class UtecBleLock(UtecBleDevice):
     def __init__(
@@ -27,7 +29,13 @@ class UtecBleLock(UtecBleDevice):
     async def async_unlock(self, update: bool = True):
         def queue():
             self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
-            self.add_request(UtecBleRequest(BLECommandCode.UNLOCK, auth_required=True))
+            self.add_request(
+                UtecBleRequest(
+                    BLECommandCode.UNLOCK,
+                    auth_required=True,
+                    delay_after=STATUS_SETTLE_SECONDS if update else 0,
+                )
+            )
             if update:
                 self.add_request(UtecBleRequest(BLECommandCode.LOCK_STATUS))
 
@@ -36,7 +44,13 @@ class UtecBleLock(UtecBleDevice):
     async def async_lock(self, update: bool = True):
         def queue():
             self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
-            self.add_request(UtecBleRequest(BLECommandCode.BOLT_LOCK, auth_required=True))
+            self.add_request(
+                UtecBleRequest(
+                    BLECommandCode.BOLT_LOCK,
+                    auth_required=True,
+                    delay_after=STATUS_SETTLE_SECONDS if update else 0,
+                )
+            )
             if update:
                 self.add_request(UtecBleRequest(BLECommandCode.LOCK_STATUS))
 
