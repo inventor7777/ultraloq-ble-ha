@@ -1,25 +1,144 @@
 """Ultraloq BLE component."""
 from __future__ import annotations
+from dataclasses import asdict
+from enum import Enum
 from functools import partial
 import logging
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_API_DEVICES,
     DOMAIN,
     LOGGER,
     PLATFORMS,
+    SERVICE_GET_DEVICE_INFORMATION,
     SERVICE_REFRESH_LOCKS,
     UPDATE_LISTENER,
     UTEC_LOCKDATA,
 )
 from .util import async_fetch_api_devices
+from .utecio.const import BOLT_STATUS, DOOR_STATUS
 from .utecio.api import build_ble_devices
+from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
 from .utecio.ble.lock import UtecBleLock
+from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
+
+DEVICE_ID = "device_id"
+GET_DEVICE_INFORMATION_SCHEMA = vol.Schema({vol.Required(DEVICE_ID): cv.string})
+
+
+def _enum_name(enum_type: type[Enum], value: int) -> str:
+    """Return a stable YAML-friendly enum name."""
+
+    try:
+        return enum_type(value).name.lower()
+    except ValueError:
+        return f"unknown_{value}"
+
+
+def _find_lock(hass: HomeAssistant, device_id: str) -> UtecBleLock:
+    """Find a loaded lock from its Home Assistant device ID."""
+
+    device = dr.async_get(hass).async_get(device_id)
+    if device is None:
+        raise ServiceValidationError(f"Device {device_id} was not found.")
+    identifier = next(
+        (value for domain, value in device.identifiers if domain == DOMAIN), None
+    )
+    if identifier is None:
+        raise ServiceValidationError("Selected device is not an Ultraloq BLE lock.")
+    for entry_data in hass.data.get(DOMAIN, {}).values():
+        for lock in entry_data.get(UTEC_LOCKDATA, []):
+            if lock.mac_uuid == identifier:
+                return lock
+    raise ServiceValidationError("Selected Ultraloq BLE lock is not loaded.")
+
+
+async def _async_handle_get_device_information(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
+    """Probe and return all information supported by one lock."""
+
+    lock = _find_lock(hass, call.data[DEVICE_ID])
+    try:
+        probe = await lock.async_get_device_information()
+    except (UtecBleDeviceError, UtecBleNotFoundError) as err:
+        raise HomeAssistantError(
+            f"Failed to connect to {lock.name}: {err}"
+        ) from err
+
+    capabilities = asdict(lock.capabilities)
+    state: dict[str, Any] = {
+        "lock_status": _enum_name(DeviceLockStatus, lock.lock_status)
+    }
+    status_key = "door_status" if lock.capabilities.doorsensor else "bolt_status"
+    state[status_key] = (
+        DOOR_STATUS if lock.capabilities.doorsensor else BOLT_STATUS
+    ).get(lock.bolt_status, f"Unknown ({lock.bolt_status})")
+    if lock.battery != DeviceBatteryLevel.NOTSET.value:
+        state["battery_level"] = _enum_name(DeviceBatteryLevel, lock.battery)
+    if lock.capabilities.autolock and lock.autolock_time >= 0:
+        state["autolock_seconds"] = lock.autolock_time
+    if lock.capabilities.mutemode:
+        state["muted"] = lock.mute
+    if lock.lock_mode != DeviceLockWorkMode.NOTSET.value:
+        state["lock_mode"] = _enum_name(DeviceLockWorkMode, lock.lock_mode)
+    if lock.calendar:
+        state["device_time"] = lock.calendar.isoformat()
+    if lock.device_time_offset is not None:
+        state["device_time_offset_seconds"] = int(
+            lock.device_time_offset.total_seconds()
+        )
+
+    response: ServiceResponse = {
+        "device": {
+            "name": lock.name,
+            "model": lock.model,
+            "serial_number": lock.sn or None,
+            "bluetooth_address": str(lock.mac_uuid),
+            "wake_address": str(lock.wurx_uuid) if lock.wurx_uuid else None,
+        },
+        "state": state,
+        "capabilities": sorted(
+            name for name, supported in capabilities.items() if supported is True
+        ),
+        "capability_settings": {
+            "add_user_remove_count": lock.capabilities.adduserremovenum,
+            "seconds": lock.capabilities.secondsarray,
+            "minutes": lock.capabilities.mtimearray,
+        },
+        "raw_responses": probe["responses"],
+    }
+    if probe["errors"]:
+        response["query_failures"] = probe["errors"]
+    return response
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register Ultraloq BLE actions."""
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_DEVICE_INFORMATION,
+        partial(_async_handle_get_device_information, hass),
+        schema=GET_DEVICE_INFORMATION_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    return True
 
 
 def _build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:

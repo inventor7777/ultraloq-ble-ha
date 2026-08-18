@@ -37,5 +37,17 @@
         }
       }
     }
+  },
+  "services": {
+    "get_device_information": {
+      "name": "Get device information",
+      "description": "Query all supported information from an Ultraloq lock over Bluetooth.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "Ultraloq lock to query."
+        }
+      }
+    }
   }
 }

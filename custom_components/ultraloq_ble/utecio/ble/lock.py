@@ -59,6 +59,45 @@ class UtecBleLock(UtecBleDevice):
             lambda: self.add_request(UtecBleRequest(BLECommandCode.REBOOT))
         )
 
+    async def async_get_device_information(self) -> dict[str, dict[str, str]]:
+        """Probe supported information without aborting after one failure."""
+
+        commands = [BLECommandCode.ADMIN_LOGIN, BLECommandCode.LOCK_STATUS]
+        if not self.capabilities.bt264:
+            commands.extend(
+                (BLECommandCode.GET_LOCK_STATUS, BLECommandCode.GET_BATTERY)
+            )
+        if self.capabilities.autolock:
+            commands.append(BLECommandCode.GET_AUTOLOCK)
+        if self.capabilities.mutemode:
+            commands.append(BLECommandCode.GET_MUTE)
+        if self.capabilities.havesn:
+            commands.append(BLECommandCode.GET_SN)
+        commands.append(BLECommandCode.READ_TIME)
+        if self.capabilities.doorsensor:
+            commands.append(BLECommandCode.DOORSENSOR)
+
+        self.calendar = None
+        self.device_time_offset = None
+        requests = [UtecBleRequest(command) for command in commands]
+
+        def queue() -> None:
+            for request in requests:
+                self.add_request(request)
+
+        await self.execute_requests(queue, continue_on_error=True)
+        responses: dict[str, str] = {}
+        errors: dict[str, str] = {}
+        for request in requests:
+            key = request.command.name.lower()
+            if request.error:
+                errors[key] = str(request.error)
+            elif not request.response.success:
+                errors[key] = "Rejected by lock"
+            elif request.command != BLECommandCode.ADMIN_LOGIN:
+                responses[key] = request.response.data.hex()
+        return {"responses": responses, "errors": errors}
+
     async def async_set_workmode(self, mode: DeviceLockWorkMode):
         def queue():
             self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))

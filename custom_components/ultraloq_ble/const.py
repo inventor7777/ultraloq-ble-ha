@@ -25,6 +25,7 @@ TIMEOUT = 20
 CONF_API_DEVICES = "api_devices"
 CONF_STAGGER_DELAY = "stagger_delay"
 SERVICE_REFRESH_LOCKS = "refresh_locks"
+SERVICE_GET_DEVICE_INFORMATION = "get_device_information"
 
 UL_ERRORS = (asyncio.TimeoutError, ClientConnectionError)
 

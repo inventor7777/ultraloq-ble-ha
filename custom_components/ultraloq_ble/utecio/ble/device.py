@@ -21,7 +21,7 @@ from .. import (
     known_devices,
     logger,
 )
-from ..util import decode_password, bytes_to_int2
+from ..util import bytes_to_ascii, bytes_to_int2, date_from_4bytes, decode_password
 from ..const import BATTERY_LEVEL, BOLT_STATUS, CRC8Table, DOOR_STATUS, LOCK_MODE
 from ..enums import BleResponseCode, BLECommandCode, DeviceServiceUUID, DeviceKeyUUID
 from Crypto.Cipher import AES
@@ -124,8 +124,8 @@ class UtecBleDevice:
         self.mute: bool = False
         self.bolt_status: int = -1
         self.sn: str = ""
-        self.calendar: datetime.datetime
-        self.device_time_offset: datetime.timedelta
+        self.calendar: datetime.datetime | None = None
+        self.device_time_offset: datetime.timedelta | None = None
 
     @property
     def is_busy(self) -> bool:
@@ -199,7 +199,10 @@ class UtecBleDevice:
             self._requests.append(request)
 
     async def execute_requests(
-        self, queue_requests: Callable[[], None], skip_if_busy: bool = False
+        self,
+        queue_requests: Callable[[], None],
+        skip_if_busy: bool = False,
+        continue_on_error: bool = False,
     ) -> bool:
         """Queue and send one command sequence without interleaving requests."""
 
@@ -223,11 +226,11 @@ class UtecBleDevice:
             queue_requests()
             if not self._requests:
                 return False
-            return await self.send_requests()
+            return await self.send_requests(continue_on_error)
         finally:
             self._command_lock.release()
 
-    async def send_requests(self) -> bool:
+    async def send_requests(self, continue_on_error: bool = False) -> bool:
         client: BleakClient = None
         notifications_started = False
         try:
@@ -364,6 +367,10 @@ class UtecBleDevice:
                             type(err).__name__,
                             err,
                         )
+                        if continue_on_error:
+                            request.error = err
+                            self._requests.remove(request)
+                            continue
                         raise self.error(
                             UtecBleDeviceError(
                                 f"Error communicating with device {self.name}({self.mac_uuid}).",
@@ -501,6 +508,7 @@ class UtecBleRequest:
         self.data = data
         self.auth_required = auth_required
         self.delay_after = delay_after
+        self.error: Exception | None = None
         self._auth_appended = False
         self._build_packet()
 
@@ -623,6 +631,12 @@ class UtecBleRequest:
             await client.write_gatt_char(
                 self.uuid, self.encrypted_package(self.aes_key), response=False
             )
+            if self.command == BLECommandCode.REBOOT:
+                self.device.debug(
+                    "(%s) REBOOT command sent; no response expected.",
+                    self.device.mac_uuid,
+                )
+                return
             try:
                 await asyncio.wait_for(
                     self.response.response_completed.wait(),
@@ -835,8 +849,20 @@ class UtecBleResponse:
                 self.device.debug("(%s) mute:%s", self.device.mac_uuid, self.device.mute)
 
             elif self.command == BleResponseCode.GET_SN:
-                self.device.sn = self.data.decode("ISO8859-1")
+                self.device.sn = bytes_to_ascii(self.data) or ""
                 self.device.debug("(%s) serial:%s", self.device.mac_uuid, self.device.sn)
+
+            elif self.command == BleResponseCode.READ_TIME:
+                self.device.calendar = date_from_4bytes(self.data)
+                if self.device.calendar:
+                    self.device.device_time_offset = (
+                        datetime.datetime.now() - self.device.calendar
+                    )
+                self.device.debug(
+                    "(%s) device time:%s",
+                    self.device.mac_uuid,
+                    self.device.calendar,
+                )
 
             elif self.command == BleResponseCode.SET_WORK_MODE:
                 if self.success:

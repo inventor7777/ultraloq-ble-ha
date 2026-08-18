@@ -1,3 +1,12 @@
 refresh_locks:
   name: Refresh Locks
   description: Refresh cached Ultraloq lock metadata from the U-tec cloud API and reload the integration.
+
+get_device_information:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: ultraloq_ble
