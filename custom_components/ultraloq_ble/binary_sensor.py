@@ -1,4 +1,4 @@
-"""Binary sensor platform for Ultraloq door status."""
+"""Binary sensor platform for Ultraloq lock status."""
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
@@ -17,20 +17,42 @@ from .utecio.ble.lock import UtecBleLock
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up door sensors for locks that report bolt status."""
+    """Set up supported binary sensors."""
 
     locks: list[UtecBleLock] = hass.data[DOMAIN][entry.entry_id][UTEC_LOCKDATA]
-    async_add_entities(
+    entities: list[BinarySensorEntity] = [
+        UltraloqSoundSensor(lock) for lock in locks if lock.capabilities.mutemode
+    ]
+    entities.extend(
         UltraloqDoorSensor(lock)
         for lock in locks
         if lock.capabilities.doorsensor
     )
+    async_add_entities(entities)
+
+
+class UltraloqSoundSensor(UltraloqEntity, BinarySensorEntity):
+    """Whether lock sounds are enabled."""
+
+    _attr_device_class = BinarySensorDeviceClass.SOUND
+
+    def __init__(self, lock: UtecBleLock) -> None:
+        """Initialize the sensor."""
+
+        super().__init__(lock, "sound")
+
+    @property
+    def is_on(self) -> bool:
+        """Return true when the lock is not muted."""
+
+        return not self.lock.mute
 
 
 class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):
     """Door contact reported in the lock-status payload."""
 
     _attr_device_class = BinarySensorDeviceClass.DOOR
+
     def __init__(self, lock: UtecBleLock) -> None:
         """Initialize the sensor."""
 

@@ -1,7 +1,7 @@
 """Button platform for Ultraloq integration."""
 from __future__ import annotations
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -20,7 +20,11 @@ async def async_setup_entry(
     """Set up Ultraloq buttons for a config entry."""
 
     locks: list[UtecBleLock] = hass.data[DOMAIN][entry.entry_id][UTEC_LOCKDATA]
-    async_add_entities(UltraloqRescanButton(lock) for lock in locks)
+    async_add_entities(
+        button
+        for lock in locks
+        for button in (UltraloqRescanButton(lock), UltraloqRestartButton(lock))
+    )
 
 
 class UltraloqRescanButton(UltraloqEntity, ButtonEntity):
@@ -58,3 +62,28 @@ class UltraloqRescanButton(UltraloqEntity, ButtonEntity):
 
         for callback_func in list(getattr(self.lock, "_ha_state_callbacks", [])):
             callback_func()
+
+
+class UltraloqRestartButton(UltraloqEntity, ButtonEntity):
+    """Button entity to restart one lock over Bluetooth."""
+
+    _attr_device_class = ButtonDeviceClass.RESTART
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:restart"
+    _listen_for_updates = False
+
+    def __init__(self, lock: UtecBleLock) -> None:
+        """Initialize the restart button."""
+
+        super().__init__(lock, "restart")
+
+    async def async_press(self) -> None:
+        """Restart the lock over Bluetooth."""
+
+        try:
+            if not await self.lock.async_reboot():
+                raise HomeAssistantError(f"Failed to restart {self.lock.name}.")
+        except (UtecBleDeviceError, UtecBleNotFoundError) as err:
+            raise HomeAssistantError(
+                f"Failed to restart {self.lock.name}: {err}"
+            ) from err
