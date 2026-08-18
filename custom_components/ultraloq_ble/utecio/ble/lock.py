@@ -1,5 +1,7 @@
+import datetime
+
 from ..enums import BLECommandCode, DeviceLockWorkMode
-from ..util import to_byte_array
+from ..util import date_to_4bytes, to_byte_array
 from .device import UtecBleDevice, UtecBleRequest
 
 STATUS_SETTLE_SECONDS = 2
@@ -97,6 +99,37 @@ class UtecBleLock(UtecBleDevice):
             elif request.command != BLECommandCode.ADMIN_LOGIN:
                 responses[key] = request.response.data.hex()
         return {"responses": responses, "errors": errors}
+
+    async def async_set_device_time(self, device_time: datetime.datetime) -> dict:
+        """Set the lock's local clock and attempt to read it back."""
+
+        payload = date_to_4bytes(device_time)
+        login = UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
+        write = UtecBleRequest(BLECommandCode.WRITE_TIME, data=payload)
+        read = UtecBleRequest(BLECommandCode.READ_TIME)
+
+        def queue() -> None:
+            for request in (login, write, read):
+                self.add_request(request)
+
+        self.calendar = None
+        self.device_time_offset = None
+        await self.execute_requests(queue, continue_on_error=True)
+        if write.error:
+            raise write.error
+
+        result = {
+            "payload": payload.hex(),
+            "write_response": write.response.data.hex(),
+        }
+        if read.error:
+            result["read_back_error"] = str(read.error)
+        elif not read.response.success:
+            result["read_back_error"] = "Rejected by lock"
+        elif self.calendar:
+            result["read_back"] = self.calendar.isoformat()
+            result["read_response"] = read.response.data.hex()
+        return result
 
     async def async_set_workmode(self, mode: DeviceLockWorkMode):
         def queue():

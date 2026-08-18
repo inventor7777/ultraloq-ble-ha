@@ -496,6 +496,7 @@ class UtecBleRequest:
             BLECommandCode.SET_LOCK_STATUS,
             BLECommandCode.SET_AUTOLOCK,
             BLECommandCode.SET_WORK_MODE,
+            BLECommandCode.WRITE_TIME,
         }:
             auth_required = True
 
@@ -661,6 +662,7 @@ class UtecBleRequest:
                     BLECommandCode.SET_LOCK_STATUS,
                     BLECommandCode.SET_AUTOLOCK,
                     BLECommandCode.SET_WORK_MODE,
+                    BLECommandCode.WRITE_TIME,
                 }
                 and not self.response.success
             ):
@@ -771,7 +773,7 @@ class UtecBleResponse:
     @property
     def data(self) -> bytearray:
         if self.is_valid:
-            return self.buffer[5 : self.data_len + 5]
+            return self._parameter(1) or bytearray()
         else:
             return bytearray()
 

@@ -1,5 +1,7 @@
 """Ultraloq BLE component."""
 from __future__ import annotations
+
+import datetime
 from dataclasses import asdict
 from enum import Enum
 from functools import partial
@@ -19,6 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_API_DEVICES,
@@ -27,6 +30,7 @@ from .const import (
     PLATFORMS,
     SERVICE_GET_DEVICE_INFORMATION,
     SERVICE_REFRESH_LOCKS,
+    SERVICE_SET_DEVICE_TIME,
     UPDATE_LISTENER,
     UTEC_LOCKDATA,
 )
@@ -38,7 +42,14 @@ from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
 
 DEVICE_ID = "device_id"
+DEVICE_TIME = "datetime"
 GET_DEVICE_INFORMATION_SCHEMA = vol.Schema({vol.Required(DEVICE_ID): cv.string})
+SET_DEVICE_TIME_SCHEMA = vol.Schema(
+    {
+        vol.Required(DEVICE_ID): cv.string,
+        vol.Optional(DEVICE_TIME): cv.string,
+    }
+)
 
 
 def _enum_name(enum_type: type[Enum], value: int) -> str:
@@ -128,6 +139,42 @@ async def _async_handle_get_device_information(
     return response
 
 
+async def _async_handle_set_device_time(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
+    """Set one lock's clock from an ISO timestamp or Home Assistant time."""
+
+    lock = _find_lock(hass, call.data[DEVICE_ID])
+    value = call.data.get(DEVICE_TIME)
+    if value:
+        try:
+            device_time = datetime.datetime.fromisoformat(
+                value.replace("Z", "+00:00")
+            )
+        except ValueError as err:
+            raise ServiceValidationError(
+                f"Invalid ISO 8601 date and time: {value}"
+            ) from err
+        if device_time.tzinfo is not None:
+            device_time = dt_util.as_local(device_time)
+    else:
+        device_time = dt_util.now()
+    device_time = device_time.replace(microsecond=0)
+
+    try:
+        result = await lock.async_set_device_time(device_time)
+    except ValueError as err:
+        raise ServiceValidationError(str(err)) from err
+    except (UtecBleDeviceError, UtecBleNotFoundError) as err:
+        raise HomeAssistantError(f"Failed to set time on {lock.name}: {err}") from err
+
+    return {
+        "device": {"name": lock.name, "bluetooth_address": str(lock.mac_uuid)},
+        "requested_time": device_time.isoformat(),
+        **result,
+    }
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register Ultraloq BLE actions."""
 
@@ -137,6 +184,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         partial(_async_handle_get_device_information, hass),
         schema=GET_DEVICE_INFORMATION_SCHEMA,
         supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_DEVICE_TIME,
+        partial(_async_handle_set_device_time, hass),
+        schema=SET_DEVICE_TIME_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     return True
 

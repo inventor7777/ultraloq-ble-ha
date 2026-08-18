@@ -10,3 +10,17 @@ get_device_information:
         device:
           filter:
             - integration: ultraloq_ble
+
+set_device_time:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: ultraloq_ble
+    datetime:
+      required: false
+      example: "2026-08-18T16:30:00-05:00"
+      selector:
+        datetime:

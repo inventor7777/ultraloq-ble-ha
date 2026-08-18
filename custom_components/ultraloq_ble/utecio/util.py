@@ -22,6 +22,22 @@ def date_from_4bytes(byte_array: bytes):
     return datetime.datetime(year, month, day, hour, minute, seconds)
 
 
+def date_to_4bytes(value: datetime.datetime) -> bytes:
+    """Encode a local datetime for the lock's WRITE_TIME command."""
+
+    if not 2000 <= value.year <= 2063:
+        raise ValueError("Ultraloq device time must be between 2000 and 2063")
+    packed = (
+        ((value.year - 2000) << 26)
+        | ((value.month + 1) << 22)
+        | (value.day << 17)
+        | (value.hour << 12)
+        | (value.minute << 6)
+        | value.second
+    )
+    return packed.to_bytes(4, "big")
+
+
 def bytes_to_int2(byte_array: bytes) -> int:
     """Decode a two-byte little-endian integer."""
 

@@ -48,6 +48,20 @@
           "description": "Ultraloq lock to query."
         }
       }
+    },
+    "set_device_time": {
+      "name": "Set device time",
+      "description": "Set an Ultraloq lock's clock using Home Assistant's current local time or a supplied ISO timestamp.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "Ultraloq lock whose clock should be set."
+        },
+        "datetime": {
+          "name": "Date and time",
+          "description": "Optional ISO date and time. Leave empty to use Home Assistant's current local time."
+        }
+      }
     }
   }
 }
