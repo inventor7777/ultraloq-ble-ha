@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import hashlib
 import logging
 import struct
@@ -13,9 +14,15 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak_retry_connector import establish_connection, BleakNotFoundError, get_device
 
-from .. import DeviceDefinition, LATCH_CAPABILITIES, canonical_model, known_devices, logger
+from .. import (
+    DeviceDefinition,
+    GenericLock,
+    canonical_model,
+    known_devices,
+    logger,
+)
 from ..util import decode_password, bytes_to_int2
-from ..const import BATTERY_LEVEL, CRC8Table, DOOR_STATUS, LOCK_MODE
+from ..const import BATTERY_LEVEL, BOLT_STATUS, CRC8Table, DOOR_STATUS, LOCK_MODE
 from ..enums import BleResponseCode, BLECommandCode, DeviceServiceUUID, DeviceKeyUUID
 from Crypto.Cipher import AES
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -61,6 +68,15 @@ class UtecBleNotFoundError(Exception):
         return f"{self.args[0]} {self.detail}" if self.detail else str(self.args[0])
 
 
+class UtecBleError(Exception):
+    def __init__(self, message: str, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail
+
+    def __str__(self) -> str:
+        return f"{self.args[0]} {self.detail}" if self.detail else str(self.args[0])
+
+
 class UtecBleDeviceError(Exception):
     def __init__(self, message: str, detail: str | None = None) -> None:
         super().__init__(message)
@@ -84,6 +100,7 @@ class UtecBleDevice:
         wurx_uuid: Any = None,
         device_model: str = "",
         async_bledevice_callback: Callable[[str], Awaitable[BLEDevice | str]] = None,
+        error_callback: Callable[[Exception], None] = None,
     ):
         self.mac_uuid = mac_uuid
         self.wurx_uuid = wurx_uuid
@@ -97,13 +114,18 @@ class UtecBleDevice:
         self._requests: list[UtecBleRequest] = []
         self._active_response: UtecBleResponse | None = None
         self._command_lock = asyncio.Lock()
+        self.config: dict[str, Any]
         self.async_bledevice_callback = async_bledevice_callback
+        self.error_callback = error_callback
         self.lock_status: int = -1
         self.lock_mode: int = -1
         self.autolock_time: int = -1
         self.battery: int = -1
+        self.mute: bool = False
         self.bolt_status: int = -1
         self.sn: str = ""
+        self.calendar: datetime.datetime
+        self.device_time_offset: datetime.timedelta
 
     @property
     def is_busy(self) -> bool:
@@ -116,11 +138,13 @@ class UtecBleDevice:
         """Return a capabilities instance for the provided model."""
 
         capabilities = known_devices.get(canonical_model(device_model))
-        if capabilities:
+        if isinstance(capabilities, DeviceDefinition):
             return capabilities
+        if isinstance(capabilities, type) and issubclass(capabilities, DeviceDefinition):
+            return capabilities()
 
         logger.warning("Unknown Ultraloq model from API: %s", device_model)
-        return LATCH_CAPABILITIES
+        return GenericLock()
 
     @classmethod
     def from_json(cls, json_config: dict[str, Any]):
@@ -136,6 +160,7 @@ class UtecBleDevice:
             new_device.wurx_uuid = json_config["params"]["extend_ble"]
         new_device.sn = json_config["params"]["serialnumber"]
         new_device.model = json_config["model"]
+        new_device.config = json_config
         logger.debug(
             "Loaded Ultraloq device name=%s model=%s mac=%s wurx=%s uid=%s password=%s",
             new_device.name,
@@ -148,9 +173,15 @@ class UtecBleDevice:
 
         return new_device
 
+    async def async_update_status(self):
+        pass
+
     def error(self, e: Exception, note: str = "") -> Exception:
         if note:
             e.add_note(note)
+
+        if self.error_callback:
+            self.error_callback(e)
 
         self.debug("(%s) %s", self.mac_uuid, e)
         return e
@@ -202,7 +233,7 @@ class UtecBleDevice:
         try:
             if len(self._requests) < 1:
                 raise self.error(
-                    UtecBleDeviceError(
+                    UtecBleError(
                         f"Unable to process requests for {self.name}({self.mac_uuid}).",
                         "No commands to send.",
                     )
@@ -758,8 +789,18 @@ class UtecBleResponse:
             if self.command == BleResponseCode.GET_LOCK_STATUS:
                 self.device.lock_mode = int(self.data[0])
                 self.device.bolt_status = int(self.data[1])
+                status_name = "door" if self.device.capabilities.doorsensor else "bolt"
+                status_map = (
+                    DOOR_STATUS if self.device.capabilities.doorsensor else BOLT_STATUS
+                )
                 self.device.debug(
-                    f"({self.device.mac_uuid}) lock:{self.device.lock_mode} ({LOCK_MODE.get(self.device.lock_mode, 'Unknown')}) |  door:{self.device.bolt_status} ({DOOR_STATUS.get(self.device.bolt_status, 'Unknown')})"
+                    "(%s) lock:%s (%s) | %s:%s (%s)",
+                    self.device.mac_uuid,
+                    self.device.lock_mode,
+                    LOCK_MODE.get(self.device.lock_mode, "Unknown"),
+                    status_name,
+                    self.device.bolt_status,
+                    status_map.get(self.device.bolt_status, "Unknown"),
                 )
 
             elif self.command == BleResponseCode.SET_LOCK_STATUS:
@@ -789,6 +830,14 @@ class UtecBleResponse:
                         self.device.autolock_time,
                     )
 
+            elif self.command == BleResponseCode.GET_MUTE:
+                self.device.mute = bool(self.data[0])
+                self.device.debug("(%s) mute:%s", self.device.mac_uuid, self.device.mute)
+
+            elif self.command == BleResponseCode.GET_SN:
+                self.device.sn = self.data.decode("ISO8859-1")
+                self.device.debug("(%s) serial:%s", self.device.mac_uuid, self.device.sn)
+
             elif self.command == BleResponseCode.SET_WORK_MODE:
                 if self.success:
                     self.device.lock_mode = self.data[0]
@@ -809,14 +858,20 @@ class UtecBleResponse:
             elif self.command == BleResponseCode.LOCK_STATUS:
                 self.device.lock_status = int(self.data[0])
                 self.device.bolt_status = int(self.data[1])
+                status_name = "door" if self.device.capabilities.doorsensor else "bolt"
                 self.device.debug(
-                    f"({self.device.mac_uuid}) lock:{self.device.lock_status} |  door:{self.device.bolt_status}"
+                    "(%s) lock:%s | %s:%s",
+                    self.device.mac_uuid,
+                    self.device.lock_status,
+                    status_name,
+                    self.device.bolt_status,
                 )
                 if self.length > 16:
                     self.device.battery = int(self.data[2])
                     self.device.lock_mode = int(self.data[3])
+                    self.device.mute = bool(self.data[4])
                     self.device.debug(
-                        f"({self.device.mac_uuid}) power level:{self.device.battery} | mode:{self.device.lock_mode}"
+                        f"({self.device.mac_uuid}) power level:{self.device.battery} | mute:{self.device.mute} | mode:{self.device.lock_mode}"
                     )
 
             self.device.debug(

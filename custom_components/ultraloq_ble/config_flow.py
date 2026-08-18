@@ -22,7 +22,7 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
-from .util import NoDevicesError, async_validate_api, InvalidCredentials
+from .util import NoDevicesError, async_validate_api_devices, InvalidCredentials
 
 DATA_SCHEMA = vol.Schema(
     {
@@ -64,7 +64,9 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
             try:
-                api_devices = await async_validate_api(self.hass, email, password)
+                api_devices = await async_validate_api_devices(
+                    self.hass, email, password
+                )
             except ConnectionError:
                 errors["base"] = "cannot_connect"
             except NoDevicesError:
@@ -106,7 +108,9 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
             try:
-                api_devices = await async_validate_api(self.hass, email, password)
+                api_devices = await async_validate_api_devices(
+                    self.hass, email, password
+                )
             except ConnectionError:
                 errors["base"] = "cannot_connect"
             except NoDevicesError:

@@ -1,6 +1,7 @@
 """Ultraloq BLE component."""
 from __future__ import annotations
 from functools import partial
+import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -17,23 +18,20 @@ from .const import (
     UTEC_LOCKDATA,
 )
 from .util import async_fetch_api_devices
-from .utecio import canonical_model, known_devices
+from .utecio.api import build_ble_devices
 from .utecio.ble.lock import UtecBleLock
 
 
 def _build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
     """Build BLE lock objects from cached API metadata."""
 
-    devices: list[UtecBleLock] = []
-    for api_device in api_devices:
-        device = UtecBleLock.from_json(api_device)
-        devices.append(device)
-        if canonical_model(device.model) not in known_devices:
-            LOGGER.warning(
-                "Treating unknown Ultraloq model as BLE-capable: %s", device.model
-            )
+    return build_ble_devices(api_devices)
 
-    return devices
+
+def debug_mode() -> bool:
+    """Return whether integration debug logging is enabled."""
+
+    return LOGGER.isEnabledFor(logging.DEBUG)
 
 
 async def _async_refresh_entry_devices(

@@ -8,9 +8,11 @@ import string
 import time
 from collections.abc import Mapping
 from typing import Any
-from . import logger
+from . import canonical_model, known_devices, logger
 
 from aiohttp import ClientResponse, ClientSession
+
+from .ble.lock import UtecBleLock
 
 ### Headers
 
@@ -39,6 +41,24 @@ class InvalidResponse(Exception):
 
 class InvalidCredentials(Exception):
     """Could not login to UTEC servers."""
+
+
+def build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
+    """Build BLE lock objects from raw API metadata."""
+
+    devices = []
+    for api_device in api_devices:
+        device = UtecBleLock.from_json(api_device)
+        if device.capabilities.bluetooth:
+            devices.append(device)
+        else:
+            logger.debug("Skipping non-BLE Ultraloq model %s", device.model)
+            continue
+        if canonical_model(device.model) not in known_devices:
+            logger.warning(
+                "Treating unknown Ultraloq model as BLE-capable: %s", device.model
+            )
+    return devices
 
 
 class UtecClient:
@@ -232,3 +252,10 @@ class UtecClient:
         await self.sync_devices()
 
         return self.devices
+
+    async def get_ble_devices(self, sync: bool = True) -> list[UtecBleLock]:
+        """Return API devices converted to BLE lock objects."""
+
+        if sync:
+            await self.sync_devices()
+        return build_ble_devices(self.devices)

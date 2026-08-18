@@ -1,9 +1,25 @@
 """U-tec protocol conversion helpers."""
 
+import datetime
 import logging
+import struct
 
 
 LOGGER = logging.getLogger("custom_components.ultraloq_ble.utecio")
+
+
+def date_from_4bytes(byte_array: bytes):
+    if byte_array is None or len(byte_array) < 4:
+        return None
+
+    value = struct.unpack(">I", byte_array[:4])[0]
+    seconds = value & 63
+    year = ((value >> 26) & 63) + 2000
+    month = ((value >> 22) - 1) & 15
+    day = (value >> 17) & 31
+    hour = (value >> 12) & 31
+    minute = (value >> 6) & 63
+    return datetime.datetime(year, month, day, hour, minute, seconds)
 
 
 def bytes_to_int2(byte_array: bytes) -> int:
@@ -12,10 +28,29 @@ def bytes_to_int2(byte_array: bytes) -> int:
     return int.from_bytes(byte_array[:2], "little")
 
 
-def to_byte_array(value: int, size: int) -> bytes:
+def byte_to_int4(byte_array, index):
+    if byte_array is None:
+        return 0
+    return int.from_bytes(byte_array[index : index + 4], "little")
+
+
+def bytes_to_ascii(byte_array: bytearray):
+    if not byte_array:
+        return None
+
+    substring = byte_array.split(b"\0", 1)[0]
+    try:
+        return substring.decode("ISO8859-1")
+    except UnicodeDecodeError:
+        return None
+
+
+def to_byte_array(value: int, size: int) -> bytearray:
     """Encode an integer as little-endian bytes."""
 
-    return value.to_bytes(size, "little")
+    value &= (1 << (min(size, 4) * 8)) - 1
+    return bytearray(value.to_bytes(size, "little"))
+
 
 def decode_password(password: int) -> str:
     """Decode the password that the API returns to the Admin Password."""
@@ -50,3 +85,7 @@ def decode_password(password: int) -> str:
     except Exception:
         LOGGER.exception("Failed to decode Ultraloq admin password from API response")
         raise
+
+
+class DeviceNotAvailable(Exception):
+    """Device not visible on Bluetooth Network."""
