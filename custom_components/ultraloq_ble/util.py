@@ -10,19 +10,16 @@ from .const import LOGGER, UL_ERRORS
 from .utecio.api import InvalidCredentials, InvalidResponse, UtecClient
 
 
-async def async_validate_api(hass: HomeAssistant, email: str, password: str) -> bool:
+async def async_validate_api(
+    hass: HomeAssistant, email: str, password: str
+) -> list[dict[str, Any]]:
     """Get data from API."""
-
-    client = UtecClient(
-        email=email, password=password, session=async_get_clientsession(hass)
-    )
 
     locks = await async_fetch_api_devices(hass, email, password)
     if not locks:
         LOGGER.error("Could not retrieve any locks from Utec servers")
         raise NoDevicesError
-    else:
-        return True
+    return locks
 
 
 async def async_fetch_api_devices(

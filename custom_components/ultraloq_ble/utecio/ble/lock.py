@@ -1,5 +1,3 @@
-import datetime
-
 from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import to_byte_array
 from .device import UtecBleDevice, UtecBleRequest
@@ -56,11 +54,6 @@ class UtecBleLock(UtecBleDevice):
 
         return await self.execute_requests(queue)
 
-    async def async_reboot(self) -> bool:
-        return await self.execute_requests(
-            lambda: self.add_request(UtecBleRequest(BLECommandCode.REBOOT))
-        )
-
     async def async_set_workmode(self, mode: DeviceLockWorkMode):
         def queue():
             self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
@@ -98,7 +91,6 @@ class UtecBleLock(UtecBleDevice):
             if not self.capabilities.bt264:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_LOCK_STATUS))
                 self.add_request(UtecBleRequest(BLECommandCode.GET_BATTERY))
-                self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
             if self.capabilities.autolock:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_AUTOLOCK))
 

@@ -8,7 +8,7 @@
             "cannot_connect": "No se pudo conectar",
             "incorrect_email_pass": "Correo electrónico y/o contraseña no válidos para la cuenta seleccionada",
             "invalid_auth": "Autenticación no válida. ¿Tus credenciales son correctas?",
-            "no_pets": "No se encontraron cerraduras en la cuenta"
+            "no_locks": "No se encontraron cerraduras en la cuenta"
         },
         "step": {
             "user": {

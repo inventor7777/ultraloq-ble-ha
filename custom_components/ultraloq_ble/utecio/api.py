@@ -8,11 +8,9 @@ import string
 import time
 from collections.abc import Mapping
 from typing import Any
-from . import known_devices, logger
+from . import logger
 
 from aiohttp import ClientResponse, ClientSession
-
-from .ble.lock import UtecBleLock
 
 ### Headers
 
@@ -162,24 +160,21 @@ class UtecClient:
         """Fetch all addresses associated with an account."""
 
         url = "https://cloud.u-tec.com/app/address"
-        headers = HEADERS
         body_data = {"timestamp": str(time.time())}
         data = {"data": json.dumps(body_data), "token": self.token}
 
-        response = await self._post(url, headers, data)
+        response = await self._post(url, HEADERS, data)
         for address in response["data"]:
             self.addresses.append(address)
-            # self.address_ids.append(address_id["id"])
 
     async def _get_rooms_at_address(self, address) -> None:
         """Get all the room IDs within an address."""
 
         url = "https://cloud.u-tec.com/app/room"
-        headers = HEADERS
         body_data = {"id": address["id"], "timestamp": str(time.time())}
         data = {"data": json.dumps(body_data), "token": self.token}
 
-        response = await self._post(url, headers, data)
+        response = await self._post(url, HEADERS, data)
         for room in response["data"]:
             self.rooms.append(room)
 
@@ -187,11 +182,10 @@ class UtecClient:
         """Fetches all the devices that are located in a room."""
 
         url = "https://cloud.u-tec.com/app/device/list"
-        headers = HEADERS
         body_data = {"room_id": room["id"], "timestamp": str(time.time())}
         data = {"data": json.dumps(body_data), "token": self.token}
 
-        response = await self._post(url, headers, data)
+        response = await self._post(url, HEADERS, data)
         for api_device in response["data"]:
             self.devices.append(api_device)
 
@@ -224,48 +218,15 @@ class UtecClient:
         await self._login()
 
     async def sync_devices(self):
+        self.addresses.clear()
+        self.rooms.clear()
+        self.devices.clear()
         await self.connect()
         await self._get_addresses()
         for address in self.addresses:
             await self._get_rooms_at_address(address)
         for room in self.rooms:
             await self._get_devices_in_room(room)
-
-    async def get_ble_devices(self, sync: bool = True) -> list[UtecBleLock]:
-        if sync:
-            await self.sync_devices()
-
-        devices = []
-
-        for api_device in self.devices:
-            device = UtecBleLock.from_json(api_device)
-            capabilities = device.capabilities
-            if isinstance(capabilities, type):
-                try:
-                    capabilities = capabilities()
-                except Exception as err:
-                    logger.warning(
-                        "Failed to initialize capabilities for model %s: %s",
-                        device.model,
-                        err,
-                    )
-                    capabilities = None
-                else:
-                    device.capabilities = capabilities
-
-            if getattr(capabilities, "bluetooth", False):
-                devices.append(device)
-                if device.model not in known_devices:
-                    logger.warning(
-                        "Treating unknown Ultraloq model as BLE-capable: %s",
-                        device.model,
-                    )
-            else:
-                logger.debug(
-                    "Skipping non-BLE or unknown Ultraloq model %s", device.model
-                )
-
-        return devices
 
     async def get_json(self) -> list:
         await self.sync_devices()

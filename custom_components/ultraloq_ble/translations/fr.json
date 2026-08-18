@@ -8,7 +8,7 @@
             "cannot_connect": "Échec de la connexion",
             "incorrect_email_pass": "Adresse e-mail et/ou mot de passe invalides pour le compte sélectionné",
             "invalid_auth": "Authentification invalide. Vos identifiants sont-ils corrects ?",
-            "no_pets": "Aucune serrure trouvée sur le compte"
+            "no_locks": "Aucune serrure trouvée sur le compte"
         },
         "step": {
             "user": {

@@ -28,9 +28,5 @@ SERVICE_REFRESH_LOCKS = "refresh_locks"
 
 UL_ERRORS = (asyncio.TimeoutError, ClientConnectionError)
 
-CONF_ZONE_METHOD = "zone_method"
-DEFAULT_ZONE_METHOD = "Utec"
-ZONE_METHODS = ["Utec", "Home Assistant"]
-
 UPDATE_LISTENER = "update_listener"
 UTEC_LOCKDATA = "utec_data"

@@ -6,11 +6,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, UTEC_LOCKDATA
+from .entity import UltraloqEntity
 from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
 from .utecio.ble.lock import UtecBleLock
 
@@ -24,45 +23,25 @@ async def async_setup_entry(
     async_add_entities(UltraloqRescanButton(lock) for lock in locks)
 
 
-class UltraloqRescanButton(ButtonEntity):
+class UltraloqRescanButton(UltraloqEntity, ButtonEntity):
     """Button entity to force an immediate BLE refresh for one lock."""
 
     _attr_has_entity_name = True
     _attr_name = "Rescan"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:bluetooth-connect"
+    _listen_for_updates = False
 
     def __init__(self, lock: UtecBleLock) -> None:
         """Initialize the button entity."""
 
-        self.lock = lock
-        self._attr_unique_id = f"ul_{self.lock.mac_uuid}_rescan"
+        super().__init__(lock, "rescan")
 
     @property
     def available(self) -> bool:
         """Keep the rescan button available even if the lock is offline."""
 
         return True
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device registry information for this lock."""
-
-        info: DeviceInfo = {
-            "identifiers": {(DOMAIN, self.lock.mac_uuid)},
-            "connections": {
-                (
-                    CONNECTION_BLUETOOTH,
-                    device_registry.format_mac(self.lock.mac_uuid),
-                )
-            },
-            "name": self.lock.name,
-            "manufacturer": "U-tec",
-            "model": self.lock.model or "Ultraloq Lock",
-        }
-        if self.lock.sn:
-            info["serial_number"] = self.lock.sn
-        return info
 
     async def async_press(self) -> None:
         """Force an immediate state refresh from the lock."""

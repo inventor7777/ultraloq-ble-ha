@@ -1,7 +1,6 @@
 """Ultraloq BLE component."""
 from __future__ import annotations
 from functools import partial
-import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -18,13 +17,8 @@ from .const import (
     UTEC_LOCKDATA,
 )
 from .util import async_fetch_api_devices
-from .utecio import known_devices
+from .utecio import canonical_model, known_devices
 from .utecio.ble.lock import UtecBleLock
-
-
-def debug_mode():
-    """Is integration in debug mode."""
-    return LOGGER.isEnabledFor(logging.DEBUG)
 
 
 def _build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
@@ -33,28 +27,11 @@ def _build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
     devices: list[UtecBleLock] = []
     for api_device in api_devices:
         device = UtecBleLock.from_json(api_device)
-        capabilities = device.capabilities
-        if isinstance(capabilities, type):
-            try:
-                capabilities = capabilities()
-            except Exception as err:
-                LOGGER.warning(
-                    "Failed to initialize capabilities for model %s: %s",
-                    device.model,
-                    err,
-                )
-                capabilities = None
-            else:
-                device.capabilities = capabilities
-
-        if getattr(capabilities, "bluetooth", False):
-            devices.append(device)
-            if device.model not in known_devices:
-                LOGGER.warning(
-                    "Treating unknown Ultraloq model as BLE-capable: %s", device.model
-                )
-        else:
-            LOGGER.debug("Skipping non-BLE or unknown Ultraloq model %s", device.model)
+        devices.append(device)
+        if canonical_model(device.model) not in known_devices:
+            LOGGER.warning(
+                "Treating unknown Ultraloq model as BLE-capable: %s", device.model
+            )
 
     return devices
 
@@ -123,31 +100,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if hass.services.has_service(DOMAIN, SERVICE_REFRESH_LOCKS):
                 hass.services.async_remove(DOMAIN, SERVICE_REFRESH_LOCKS)
     return unload_ok
-
-
-# async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-#     """ Migrate old entry. """
-
-#     if entry.version in [1,2]:
-#         if entry.version == 1:
-#             email = entry.data[CONF_USERNAME]
-#         else:
-#             email = entry.data[CONF_EMAIL]
-#         password = entry.data[CONF_PASSWORD]
-
-#         LOGGER.debug(f'Migrate config entry unique id to {email}')
-#         entry.version = 3
-
-#         hass.config_entries.async_update_entry(
-#             entry,
-#             data={
-#                 CONF_EMAIL: email,
-#                 CONF_PASSWORD: password,
-#             },
-#             options={CONF_ZONE_METHOD: DEFAULT_ZONE_METHOD},
-#             unique_id=email,
-#         )
-#     return True
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:

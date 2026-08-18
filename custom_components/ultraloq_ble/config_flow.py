@@ -14,6 +14,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.const import CONF_SCAN_INTERVAL
 
 from .const import (
+    CONF_API_DEVICES,
     CONF_STAGGER_DELAY,
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
@@ -63,7 +64,7 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
             try:
-                await async_validate_api(self.hass, email, password)
+                api_devices = await async_validate_api(self.hass, email, password)
             except ConnectionError:
                 errors["base"] = "cannot_connect"
             except NoDevicesError:
@@ -81,6 +82,7 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_EMAIL: email,
                         CONF_PASSWORD: password,
+                        CONF_API_DEVICES: api_devices,
                     },
                 )
                 await self.hass.config_entries.async_reload(self.entry.entry_id)
@@ -104,7 +106,7 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
             try:
-                await async_validate_api(self.hass, email, password)
+                api_devices = await async_validate_api(self.hass, email, password)
             except ConnectionError:
                 errors["base"] = "cannot_connect"
             except NoDevicesError:
@@ -120,7 +122,11 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 return self.async_create_entry(
                     title=DEFAULT_NAME,
-                    data={CONF_EMAIL: email, CONF_PASSWORD: password},
+                    data={
+                        CONF_EMAIL: email,
+                        CONF_PASSWORD: password,
+                        CONF_API_DEVICES: api_devices,
+                    },
                     options={
                         CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                         CONF_STAGGER_DELAY: DEFAULT_STAGGER_DELAY,

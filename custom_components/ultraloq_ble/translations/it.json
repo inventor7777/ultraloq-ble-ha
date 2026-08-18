@@ -8,7 +8,7 @@
             "cannot_connect": "Connessione non riuscita",
             "incorrect_email_pass": "Email e/o password non valide per l'account selezionato",
             "invalid_auth": "Autenticazione non valida. Le credenziali sono corrette?",
-            "no_pets": "Nessuna serratura trovata nell'account"
+            "no_locks": "Nessuna serratura trovata nell'account"
         },
         "step": {
             "user": {

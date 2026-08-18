@@ -21,7 +21,7 @@
       "cannot_connect": "Failed to connect",
       "incorrect_email_pass": "Invalid Email and/or Password for selected account",
       "invalid_auth": "Invalid authentication. Are your credentials correct?",
-      "no_pets": "No locks found on account"
+      "no_locks": "No locks found on account"
     },
     "abort": {
       "already_configured": "Xthings (U-tec) account is already configured",

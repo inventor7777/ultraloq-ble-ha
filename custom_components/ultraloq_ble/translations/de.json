@@ -8,7 +8,7 @@
             "cannot_connect": "Verbindung fehlgeschlagen",
             "incorrect_email_pass": "Ungültige E-Mail und/oder ungültiges Passwort für das ausgewählte Konto",
             "invalid_auth": "Ungültige Authentifizierung. Sind deine Zugangsdaten korrekt?",
-            "no_pets": "Keine Schlösser im Konto gefunden"
+            "no_locks": "Keine Schlösser im Konto gefunden"
         },
         "step": {
             "user": {

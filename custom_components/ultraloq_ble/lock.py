@@ -7,7 +7,7 @@ from datetime import timedelta
 from bleak.backends.device import BLEDevice
 from .utecio.ble.lock import UtecBleLock
 from .utecio.ble.device import UtecBleNotFoundError, UtecBleDeviceError
-from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
+from .utecio.enums import DeviceLockStatus
 
 from homeassistant.components import bluetooth
 from homeassistant.components.lock import (
@@ -19,7 +19,7 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later
@@ -32,6 +32,7 @@ from .const import (
     LOGGER,
     UTEC_LOCKDATA,
 )
+from .entity import UltraloqEntity
 
 
 async def async_setup_entry(
@@ -55,7 +56,7 @@ async def async_setup_entry(
     async_add_entities(new_entities=entities)
 
 
-class UtecLock(LockEntity):
+class UtecLock(UltraloqEntity, LockEntity):
     """Representation of Ultraloq Device."""
 
     _transition_timeout_seconds = 60
@@ -68,8 +69,7 @@ class UtecLock(LockEntity):
         poll_offset: int,
     ) -> None:
         """Initialize the Lock."""
-        super().__init__()
-        self.lock: UtecBleLock = lock
+        super().__init__(lock)
         self._attr_is_locked = True
         self._attr_is_jammed = False
         self.lock.async_bledevice_callback = self.async_bledevice_callback
@@ -80,14 +80,10 @@ class UtecLock(LockEntity):
         self._attr_is_unlocking = False
         self._transition_timeout_cancel = None
         self.update_track_cancel = None
-        self._cancel_unavailable_track = None
         self._attributes = {}
         self._update_in_progress = False
         self._update_requested = False
         self._attr_supported_features = LockEntityFeature(0)
-        if not hasattr(self.lock, "_ha_state_callbacks"):
-            self.lock._ha_state_callbacks = []
-        # uteclogger.setLevel(LOGGER.level)
 
     def _candidate_addresses(self) -> list[str]:
         """Return candidate BLE addresses to try for this lock."""
@@ -99,63 +95,9 @@ class UtecLock(LockEntity):
         return candidates
 
     @property
-    def should_poll(self) -> bool:
-        """False if entity pushes its state to HA."""
-        return False
-
-    @property
-    def available(self) -> bool:
-        """Return availability based on BLE presence and known lock state."""
-
-        return (
-            getattr(self.lock, "_ha_available", True)
-            and self.lock.lock_status != DeviceLockStatus.NOTSET.value
-        )
-
-    # @property
-    # def device_info(self) -> dict[str, Any]:
-    #     """Return device registry information for this entity."""
-
-    #     return self.lock.config
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device registry information for this lock."""
-
-        identifiers = {(DOMAIN, self.lock.mac_uuid)}
-        info: DeviceInfo = {
-            "identifiers": identifiers,
-            "connections": {
-                (
-                    CONNECTION_BLUETOOTH,
-                    device_registry.format_mac(self.lock.mac_uuid),
-                )
-            },
-            "name": self.lock.name,
-            "manufacturer": "U-tec",
-            "model": self.lock.model or "Ultraloq Lock",
-        }
-        if self.lock.sn:
-            info["serial_number"] = self.lock.sn
-        return info
-
-    @property
     def extra_state_attributes(self):
-        """Return lock state attributes."""
-        if not self.lock:
-            return {}
-
-        attrs = {
-            "battery_level": DeviceBatteryLevel(self.lock.battery).name,
-            "autolock_time": (
-                self.lock.autolock_time if self.lock.autolock_time >= 0 else -1
-            ),
-            "lock_status": DeviceLockStatus(self.lock.lock_status).name,
-            "bolt_status": DeviceLockStatus(self.lock.bolt_status).name,
-            "lock_mode": DeviceLockWorkMode(self.lock.lock_mode).name,
-        }
-        attrs.update(self._attributes)
-        return attrs
+        """Return BLE diagnostic attributes."""
+        return self._attributes
 
     @property
     def unique_id(self) -> str:
@@ -222,7 +164,6 @@ class UtecLock(LockEntity):
 
     async def async_added_to_hass(self):
         """Run when entity about to be added to hass."""
-        self.lock._ha_state_callbacks.append(self._handle_lock_state_update)
         address = self.lock.wurx_uuid if self.lock.wurx_uuid else self.lock.mac_uuid
         self.async_on_remove(
             bluetooth.async_track_unavailable(
@@ -250,8 +191,6 @@ class UtecLock(LockEntity):
 
     async def async_will_remove_from_hass(self):
         """Run when entity will be removed from hass."""
-        if self._handle_lock_state_update in self.lock._ha_state_callbacks:
-            self.lock._ha_state_callbacks.remove(self._handle_lock_state_update)
         self._clear_transition_state()
         if self.update_track_cancel:
             self.update_track_cancel()
@@ -436,7 +375,7 @@ class UtecLock(LockEntity):
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             self._clear_transition_state()
             self.async_write_ha_state()
-            LOGGER.error(e)
+            raise HomeAssistantError(f"Failed to lock {self.name}: {e}") from e
 
     async def async_unlock(self, **kwargs):
         """Unlock the lock."""
@@ -452,7 +391,7 @@ class UtecLock(LockEntity):
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             self._clear_transition_state()
             self.async_write_ha_state()
-            LOGGER.error(e)
+            raise HomeAssistantError(f"Failed to unlock {self.name}: {e}") from e
 
     async def async_open(self, **kwargs: Any) -> None:
         """Open the door latch."""
