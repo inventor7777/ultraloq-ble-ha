@@ -1,7 +1,7 @@
 import datetime
 
 from ..enums import BLECommandCode, DeviceLockWorkMode
-from ..util import date_to_4bytes, to_byte_array
+from ..util import date_from_4bytes, date_to_4bytes, to_byte_array
 from .device import UtecBleDevice, UtecBleRequest
 
 STATUS_SETTLE_SECONDS = 2
@@ -105,30 +105,36 @@ class UtecBleLock(UtecBleDevice):
 
         payload = date_to_4bytes(device_time)
         login = UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
-        write = UtecBleRequest(BLECommandCode.WRITE_TIME, data=payload)
-        read = UtecBleRequest(BLECommandCode.READ_TIME)
+        write = UtecBleRequest(
+            BLECommandCode.WRITE_TIME,
+            data=payload,
+            delay_after=STATUS_SETTLE_SECONDS,
+        )
+        status = UtecBleRequest(BLECommandCode.LOCK_STATUS)
 
         def queue() -> None:
-            for request in (login, write, read):
+            for request in (login, write, status):
                 self.add_request(request)
 
         self.calendar = None
         self.device_time_offset = None
-        await self.execute_requests(queue, continue_on_error=True)
-        if write.error:
-            raise write.error
+        await self.execute_requests(queue)
 
         result = {
             "payload": payload.hex(),
-            "write_response": write.response.data.hex(),
+            "status_response": status.response.data.hex(),
         }
-        if read.error:
-            result["read_back_error"] = str(read.error)
-        elif not read.response.success:
-            result["read_back_error"] = "Rejected by lock"
-        elif self.calendar:
-            result["read_back"] = self.calendar.isoformat()
-            result["read_response"] = read.response.data.hex()
+        if write.response.is_valid:
+            result["write_response"] = write.response.data.hex()
+        try:
+            read_back = date_from_4bytes(status.response.data[5:9])
+        except ValueError as err:
+            result["read_back_error"] = str(err)
+        else:
+            if read_back:
+                result["read_back"] = read_back.isoformat()
+            else:
+                result["read_back_error"] = "LOCK_STATUS did not include device time"
         return result
 
     async def async_set_workmode(self, mode: DeviceLockWorkMode):

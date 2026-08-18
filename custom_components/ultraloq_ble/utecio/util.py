@@ -15,7 +15,7 @@ def date_from_4bytes(byte_array: bytes):
     value = struct.unpack(">I", byte_array[:4])[0]
     seconds = value & 63
     year = ((value >> 26) & 63) + 2000
-    month = ((value >> 22) - 1) & 15
+    month = (value >> 22) & 15
     day = (value >> 17) & 31
     hour = (value >> 12) & 31
     minute = (value >> 6) & 63
@@ -29,13 +29,13 @@ def date_to_4bytes(value: datetime.datetime) -> bytes:
         raise ValueError("Ultraloq device time must be between 2000 and 2063")
     packed = (
         ((value.year - 2000) << 26)
-        | ((value.month + 1) << 22)
+        | (value.month << 22)
         | (value.day << 17)
         | (value.hour << 12)
         | (value.minute << 6)
         | value.second
     )
-    return packed.to_bytes(4, "big")
+    return packed.to_bytes(4, "little")
 
 
 def bytes_to_int2(byte_array: bytes) -> int:

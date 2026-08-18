@@ -632,11 +632,14 @@ class UtecBleRequest:
             await client.write_gatt_char(
                 self.uuid, self.encrypted_package(self.aes_key), response=False
             )
-            if self.command == BLECommandCode.REBOOT:
+            if self.command in {BLECommandCode.REBOOT, BLECommandCode.WRITE_TIME}:
                 self.device.debug(
-                    "(%s) REBOOT command sent; no response expected.",
+                    "(%s) %s command sent; no response expected.",
                     self.device.mac_uuid,
+                    self.command.name,
                 )
+                if self.delay_after:
+                    await asyncio.sleep(self.delay_after)
                 return
             try:
                 await asyncio.wait_for(
@@ -662,7 +665,6 @@ class UtecBleRequest:
                     BLECommandCode.SET_LOCK_STATUS,
                     BLECommandCode.SET_AUTOLOCK,
                     BLECommandCode.SET_WORK_MODE,
-                    BLECommandCode.WRITE_TIME,
                 }
                 and not self.response.success
             ):
