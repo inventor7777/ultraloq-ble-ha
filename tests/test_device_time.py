@@ -12,10 +12,10 @@ spec = importlib.util.spec_from_file_location("utecio_util", path)
 util = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(util)
 
-device_time = datetime.datetime(2018, 10, 21, 18, 17, 42)
+device_time = datetime.datetime(2026, 8, 18, 10, 45, 10)
 read_payload = bytes.fromhex("4aab246a")
 assert util.date_from_4bytes(read_payload) == device_time
-assert util.date_to_4bytes(device_time).hex() == "6a24ab4a"
+assert util.date_to_4bytes(device_time) == read_payload
 assert (
     util.date_to_4bytes(datetime.datetime(2026, 8, 18, 11, 7, 47)).hex()
     == "efb1246a"
@@ -42,5 +42,5 @@ request_init = next(
     for node in request.body
     if isinstance(node, ast.FunctionDef) and node.name == "__init__"
 )
-assert "WRITE_TIME" in ast.unparse(request_init)
+assert "WRITE_TIME" not in ast.unparse(request_init)
 assert "{BLECommandCode.REBOOT, BLECommandCode.WRITE_TIME}" in device_source

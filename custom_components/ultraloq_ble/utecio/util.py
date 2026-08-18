@@ -12,7 +12,7 @@ def date_from_4bytes(byte_array: bytes):
     if byte_array is None or len(byte_array) < 4:
         return None
 
-    value = struct.unpack(">I", byte_array[:4])[0]
+    value = struct.unpack("<I", byte_array[:4])[0]
     seconds = value & 63
     year = ((value >> 26) & 63) + 2000
     month = (value >> 22) & 15

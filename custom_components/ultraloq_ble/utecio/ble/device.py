@@ -485,7 +485,7 @@ class UtecBleRequest:
         self,
         command: BLECommandCode,
         device: UtecBleDevice = None,
-        data: bytes = b"",
+        data: bytes | Callable[[], bytes] = b"",
         auth_required: bool = False,
         delay_after: float = 0,
     ):
@@ -496,7 +496,6 @@ class UtecBleRequest:
             BLECommandCode.SET_LOCK_STATUS,
             BLECommandCode.SET_AUTOLOCK,
             BLECommandCode.SET_WORK_MODE,
-            BLECommandCode.WRITE_TIME,
         }:
             auth_required = True
 
@@ -506,7 +505,8 @@ class UtecBleRequest:
         self.response: UtecBleResponse
         self.aes_key: bytes
         self.sent = False
-        self.data = data
+        self._data_factory = data if callable(data) else None
+        self.data = b"" if self._data_factory else data
         self.auth_required = auth_required
         self.delay_after = delay_after
         self.error: Exception | None = None
@@ -612,6 +612,9 @@ class UtecBleRequest:
         return pkg
 
     async def _get_response(self, client: BleakClient):
+        if self._data_factory:
+            self.data = self._data_factory()
+            self._build_packet()
         self.response = UtecBleResponse(self, self.device)
         try:
             logger.debug(
@@ -900,6 +903,11 @@ class UtecBleResponse:
                     self.device.battery = int(self.data[2])
                     self.device.lock_mode = int(self.data[3])
                     self.device.mute = bool(self.data[4])
+                    if self.device.capabilities.bt264 and len(self.data) >= 9:
+                        self.device.calendar = date_from_4bytes(self.data[5:9])
+                        self.device.device_time_offset = (
+                            datetime.datetime.now() - self.device.calendar
+                        )
                     self.device.debug(
                         f"({self.device.mac_uuid}) power level:{self.device.battery} | mute:{self.device.mute} | mode:{self.device.lock_mode}"
                     )

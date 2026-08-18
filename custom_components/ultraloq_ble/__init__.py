@@ -158,8 +158,7 @@ async def _async_handle_set_device_time(
         if device_time.tzinfo is not None:
             device_time = dt_util.as_local(device_time)
     else:
-        device_time = dt_util.now()
-    device_time = device_time.replace(microsecond=0)
+        device_time = dt_util.now
 
     try:
         result = await lock.async_set_device_time(device_time)
@@ -170,7 +169,6 @@ async def _async_handle_set_device_time(
 
     return {
         "device": {"name": lock.name, "bluetooth_address": str(lock.mac_uuid)},
-        "requested_time": device_time.isoformat(),
         **result,
     }
 

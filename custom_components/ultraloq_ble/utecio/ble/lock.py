@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Callable
 
 from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import date_from_4bytes, date_to_4bytes, to_byte_array
@@ -75,7 +76,8 @@ class UtecBleLock(UtecBleDevice):
             commands.append(BLECommandCode.GET_MUTE)
         if self.capabilities.havesn:
             commands.append(BLECommandCode.GET_SN)
-        commands.append(BLECommandCode.READ_TIME)
+        if not self.capabilities.bt264:
+            commands.append(BLECommandCode.READ_TIME)
         if self.capabilities.doorsensor:
             commands.append(BLECommandCode.DOORSENSOR)
 
@@ -100,14 +102,26 @@ class UtecBleLock(UtecBleDevice):
                 responses[key] = request.response.data.hex()
         return {"responses": responses, "errors": errors}
 
-    async def async_set_device_time(self, device_time: datetime.datetime) -> dict:
+    async def async_set_device_time(
+        self, device_time: datetime.datetime | Callable[[], datetime.datetime]
+    ) -> dict:
         """Set the lock's local clock and attempt to read it back."""
 
-        payload = date_to_4bytes(device_time)
+        if isinstance(device_time, datetime.datetime):
+            sent_time = device_time.replace(microsecond=0)
+            write_data = date_to_4bytes(sent_time)
+        else:
+            sent_time = None
+
+            def write_data() -> bytes:
+                nonlocal sent_time
+                sent_time = device_time().replace(microsecond=0)
+                return date_to_4bytes(sent_time)
+
         login = UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
         write = UtecBleRequest(
             BLECommandCode.WRITE_TIME,
-            data=payload,
+            data=write_data,
             delay_after=STATUS_SETTLE_SECONDS,
         )
         status = UtecBleRequest(BLECommandCode.LOCK_STATUS)
@@ -121,7 +135,8 @@ class UtecBleLock(UtecBleDevice):
         await self.execute_requests(queue)
 
         result = {
-            "payload": payload.hex(),
+            "requested_time": sent_time.isoformat(),
+            "payload": write.data.hex(),
             "status_response": status.response.data.hex(),
         }
         if write.response.is_valid:
