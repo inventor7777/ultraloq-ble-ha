@@ -77,6 +77,12 @@ class UltraloqRestartButton(UltraloqEntity, ButtonEntity):
 
         super().__init__(lock, "restart")
 
+    @property
+    def available(self) -> bool:
+        """Keep the restart button available regardless of cached lock state."""
+
+        return True
+
     async def async_press(self) -> None:
         """Restart the lock over Bluetooth."""
 

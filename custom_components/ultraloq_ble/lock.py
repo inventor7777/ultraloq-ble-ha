@@ -105,12 +105,6 @@ class UtecLock(UltraloqEntity, LockEntity):
 
         return "ul_" + device_registry.format_mac(self.lock.mac_uuid)
 
-    @property
-    def name(self) -> str:
-        """Return name of the entity."""
-
-        return self.lock.name
-
     def _sync_state_from_lock(self) -> None:
         """Update the entity state from the latest lock data."""
 
@@ -156,7 +150,7 @@ class UtecLock(UltraloqEntity, LockEntity):
         if self._attr_is_locking or self._attr_is_unlocking:
             LOGGER.warning(
                 "Clearing stale transition state for %s after %s seconds",
-                self.name,
+                self.lock.name,
                 self._transition_timeout_seconds,
             )
             self._clear_transition_state()
@@ -345,15 +339,20 @@ class UtecLock(UltraloqEntity, LockEntity):
 
     async def async_update(self, **kwargs):
         """Update the lock."""
-        LOGGER.debug("Updating %s with scan interval: %s", self.name, self.scaninterval)
+        LOGGER.debug(
+            "Updating %s with scan interval: %s", self.lock.name, self.scaninterval
+        )
         self._update_requested = False
         self._update_in_progress = True
         try:
             if not await self.lock.async_update_status(skip_if_busy=True):
-                LOGGER.debug("Skipping state sync for %s because refresh was already in progress", self.name)
+                LOGGER.debug(
+                    "Skipping state sync for %s because refresh was already in progress",
+                    self.lock.name,
+                )
                 return
             self._sync_state_from_lock()
-            LOGGER.info("(%s) Updated.", self.name)
+            LOGGER.info("(%s) Updated.", self.lock.name)
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             LOGGER.error(e)
         finally:
@@ -375,7 +374,7 @@ class UtecLock(UltraloqEntity, LockEntity):
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             self._clear_transition_state()
             self.async_write_ha_state()
-            raise HomeAssistantError(f"Failed to lock {self.name}: {e}") from e
+            raise HomeAssistantError(f"Failed to lock {self.lock.name}: {e}") from e
 
     async def async_unlock(self, **kwargs):
         """Unlock the lock."""
@@ -391,7 +390,7 @@ class UtecLock(UltraloqEntity, LockEntity):
         except (UtecBleDeviceError, UtecBleNotFoundError) as e:
             self._clear_transition_state()
             self.async_write_ha_state()
-            raise HomeAssistantError(f"Failed to unlock {self.name}: {e}") from e
+            raise HomeAssistantError(f"Failed to unlock {self.lock.name}: {e}") from e
 
     async def async_open(self, **kwargs: Any) -> None:
         """Open the door latch."""
