@@ -11,7 +11,14 @@ LOGGER = logging.getLogger(__package__)
 DEFAULT_SCAN_INTERVAL = 300
 DEFAULT_STAGGER_DELAY = 10
 DOMAIN = "ultraloq_ble"
-PLATFORMS = [Platform.LOCK, Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
+PLATFORMS = [
+    Platform.LOCK,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.BUTTON,
+    Platform.SELECT,
+]
 
 DEFAULT_NAME = "Ultraloq BLE"
 TIMEOUT = 20

@@ -39,6 +39,7 @@ class DeviceLockStatus(Enum):
     UNAVAILABLE = 0
     UNLOCKED = 1
     LOCKED = 2
+    JAMMED = 3
     NOTAVAILABLE = 255
 
 

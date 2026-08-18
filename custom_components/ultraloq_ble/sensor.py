@@ -19,12 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, UTEC_LOCKDATA
 from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
-
-NO_BOLT_STATUS_MODELS = {
-    "U-Bolt-Pro",
-    "U-Bolt-PRO",
-    "U-Bolt Pro",
-}
+from .utecio.const import NO_BOLT_STATUS_MODELS
 
 
 @dataclass(frozen=True, kw_only=True)

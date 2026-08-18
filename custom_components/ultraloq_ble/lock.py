@@ -71,6 +71,7 @@ class UtecLock(LockEntity):
         super().__init__()
         self.lock: UtecBleLock = lock
         self._attr_is_locked = True
+        self._attr_is_jammed = False
         self.lock.async_bledevice_callback = self.async_bledevice_callback
         self.lock._ha_available = True
         self.scaninterval = scan_interval
@@ -172,10 +173,15 @@ class UtecLock(LockEntity):
         """Update the entity state from the latest lock data."""
 
         if self.lock.lock_status == DeviceLockStatus.UNLOCKED.value:
+            self._attr_is_jammed = False
             self._attr_is_locked = False
             self._clear_transition_state()
         elif self.lock.lock_status == DeviceLockStatus.LOCKED.value:
+            self._attr_is_jammed = False
             self._attr_is_locked = True
+            self._clear_transition_state()
+        elif self.lock.lock_status == DeviceLockStatus.JAMMED.value:
+            self._attr_is_jammed = True
             self._clear_transition_state()
 
     @callback
