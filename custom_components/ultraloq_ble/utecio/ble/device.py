@@ -606,7 +606,7 @@ class UtecBleRequest:
             )
             self.device._active_response = self.response
             await client.write_gatt_char(
-                self.uuid, self.encrypted_package(self.aes_key)
+                self.uuid, self.encrypted_package(self.aes_key), response=False
             )
             try:
                 await asyncio.wait_for(

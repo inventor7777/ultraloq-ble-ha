@@ -32,4 +32,5 @@ assert "start_notify" in ast.unparse(send_requests)
 assert "stop_notify" in ast.unparse(send_requests)
 assert "start_notify" not in ast.unparse(get_response)
 assert "stop_notify" not in ast.unparse(get_response)
+assert "response=False" in ast.unparse(get_response)
 assert "Could not stop data notifications" in source
