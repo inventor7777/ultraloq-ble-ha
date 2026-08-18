@@ -1,4 +1,5 @@
 """Constants for Ultraloq BLE."""
+
 import asyncio
 import logging
 

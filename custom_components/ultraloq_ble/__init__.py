@@ -1,8 +1,9 @@
 """Ultraloq BLE component."""
+
 from __future__ import annotations
 
-import datetime
 from dataclasses import asdict
+import datetime
 from enum import Enum
 from functools import partial
 import logging
@@ -34,21 +35,18 @@ from .const import (
     UPDATE_LISTENER,
     UTEC_LOCKDATA,
 )
-from .util import async_fetch_api_devices
-from .utecio.const import DOOR_STATUS
 from .utecio.api import build_ble_devices
 from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
 from .utecio.ble.lock import UtecBleLock
+from .utecio.const import DOOR_STATUS
 from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
+from .util import async_fetch_api_devices
 
 DEVICE_ID = "device_id"
 DEVICE_TIME = "datetime"
 GET_DEVICE_INFORMATION_SCHEMA = vol.Schema({vol.Required(DEVICE_ID): cv.string})
 SET_DEVICE_TIME_SCHEMA = vol.Schema(
-    {
-        vol.Required(DEVICE_ID): cv.string,
-        vol.Optional(DEVICE_TIME): cv.string,
-    }
+    {vol.Required(DEVICE_ID): cv.string, vol.Optional(DEVICE_TIME): cv.string}
 )
 
 
@@ -88,9 +86,7 @@ async def _async_handle_get_device_information(
     try:
         probe = await lock.async_get_device_information()
     except (UtecBleDeviceError, UtecBleNotFoundError) as err:
-        raise HomeAssistantError(
-            f"Failed to connect to {lock.name}: {err}"
-        ) from err
+        raise HomeAssistantError(f"Failed to connect to {lock.name}: {err}") from err
 
     capabilities = asdict(lock.capabilities)
     state: dict[str, Any] = {
@@ -147,9 +143,7 @@ async def _async_handle_set_device_time(
     value = call.data.get(DEVICE_TIME)
     if value:
         try:
-            device_time = datetime.datetime.fromisoformat(
-                value.replace("Z", "+00:00")
-            )
+            device_time = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as err:
             raise ServiceValidationError(
                 f"Invalid ISO 8601 date and time: {value}"
@@ -210,20 +204,15 @@ async def _async_refresh_entry_devices(
     """Fetch and persist fresh API device metadata for one config entry."""
 
     api_devices = await async_fetch_api_devices(
-        hass,
-        entry.data[CONF_EMAIL],
-        entry.data[CONF_PASSWORD],
+        hass, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD]
     )
     hass.config_entries.async_update_entry(
-        entry,
-        data={**entry.data, CONF_API_DEVICES: api_devices},
+        entry, data={**entry.data, CONF_API_DEVICES: api_devices}
     )
     return api_devices
 
 
-async def _async_handle_refresh_locks(
-    hass: HomeAssistant, call: ServiceCall
-) -> None:
+async def _async_handle_refresh_locks(hass: HomeAssistant, call: ServiceCall) -> None:
     """Refresh cached lock metadata for all configured Ultraloq entries."""
 
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -243,9 +232,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_LOCKS):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_LOCKS,
-            partial(_async_handle_refresh_locks, hass),
+            DOMAIN, SERVICE_REFRESH_LOCKS, partial(_async_handle_refresh_locks, hass)
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

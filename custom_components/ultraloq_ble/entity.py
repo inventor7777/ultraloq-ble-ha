@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 from homeassistant.helpers.entity import Entity
 
@@ -43,12 +43,7 @@ class UltraloqEntity(Entity):
 
         info: DeviceInfo = {
             "identifiers": {(DOMAIN, self.lock.mac_uuid)},
-            "connections": {
-                (
-                    CONNECTION_BLUETOOTH,
-                    device_registry.format_mac(self.lock.mac_uuid),
-                )
-            },
+            "connections": {(CONNECTION_BLUETOOTH, dr.format_mac(self.lock.mac_uuid))},
             "name": self.lock.name,
             "manufacturer": "U-tec",
             "model": self.lock.model or "Ultraloq Lock",

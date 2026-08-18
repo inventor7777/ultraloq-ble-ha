@@ -1,4 +1,5 @@
 """Binary sensor platform for Ultraloq lock status."""
+
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
@@ -24,9 +25,7 @@ async def async_setup_entry(
         UltraloqSoundSensor(lock) for lock in locks if lock.capabilities.mutemode
     ]
     entities.extend(
-        UltraloqDoorSensor(lock)
-        for lock in locks
-        if lock.capabilities.doorsensor
+        UltraloqDoorSensor(lock) for lock in locks if lock.capabilities.doorsensor
     )
     async_add_entities(entities)
 
@@ -62,9 +61,9 @@ class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return availability when the lock reports a door state."""
 
-        return (
-            getattr(self.lock, "_ha_available", True)
-            and self.lock.door_status in (0, 1)
+        return getattr(self.lock, "_ha_available", True) and self.lock.door_status in (
+            0,
+            1,
         )
 
     @property

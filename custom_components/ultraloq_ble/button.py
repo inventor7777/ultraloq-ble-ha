@@ -1,4 +1,5 @@
 """Button platform for Ultraloq integration."""
+
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity

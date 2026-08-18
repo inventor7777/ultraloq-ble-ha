@@ -1,7 +1,7 @@
 """U-tec device capability definitions."""
 
-import logging
 from dataclasses import asdict, dataclass, field
+import logging
 from typing import ClassVar
 
 logger = logging.getLogger("custom_components.ultraloq_ble.utecio")

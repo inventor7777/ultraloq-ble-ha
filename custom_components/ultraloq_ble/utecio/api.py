@@ -1,17 +1,18 @@
 """Python script for fetching account ID and password."""
+
 ### Original code courtesy of RobertD502
 from __future__ import annotations
 
+from collections.abc import Mapping
 import json
 import secrets
 import string
 import time
-from collections.abc import Mapping
 from typing import Any
-from . import canonical_model, known_devices, logger
 
 from aiohttp import ClientResponse, ClientSession
 
+from . import canonical_model, known_devices, logger
 from .ble.lock import UtecBleLock
 
 ### Headers
@@ -114,9 +115,7 @@ class UtecClient:
         return False
 
     @classmethod
-    def _ensure_success(
-        cls, response: dict[str, Any], message: str
-    ) -> dict[str, Any]:
+    def _ensure_success(cls, response: dict[str, Any], message: str) -> dict[str, Any]:
         """Validate a response and raise a meaningful exception when it fails."""
 
         if not isinstance(response, dict) or not response:
@@ -168,10 +167,7 @@ class UtecClient:
 
         response = await self._post(url, HEADERS, data)
         try:
-            self._ensure_success(
-                response,
-                "Login/password combination not found.",
-            )
+            self._ensure_success(response, "Login/password combination not found.")
         except InvalidResponse as err:
             logger.debug("UTEC login failed: %s", err)
             raise InvalidCredentials(str(err)) from err

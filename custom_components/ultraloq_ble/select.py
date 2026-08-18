@@ -31,18 +31,14 @@ def _supported_lock_mode_options(lock: UtecBleLock) -> list[str]:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up Ultraloq select entities for a config entry."""
     locks: list[UtecBleLock] = hass.data[DOMAIN][entry.entry_id][UTEC_LOCKDATA]
     entities: list[UltraloqLockModeSelect] = []
 
     for lock in locks:
-        if not (
-            lock.capabilities.passage or lock.capabilities.lockout
-        ):
+        if not (lock.capabilities.passage or lock.capabilities.lockout):
             continue
         entities.append(UltraloqLockModeSelect(lock))
 

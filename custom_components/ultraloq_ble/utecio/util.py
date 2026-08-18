@@ -4,7 +4,6 @@ import datetime
 import logging
 import struct
 
-
 LOGGER = logging.getLogger("custom_components.ultraloq_ble.utecio")
 
 

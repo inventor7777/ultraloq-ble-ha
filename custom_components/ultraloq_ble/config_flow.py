@@ -1,4 +1,5 @@
 """Config flow for Ultraloq BLE integration."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -7,11 +8,10 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
-from homeassistant.const import CONF_SCAN_INTERVAL
 
 from .const import (
     CONF_API_DEVICES,
@@ -22,13 +22,10 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
-from .util import NoDevicesError, async_validate_api_devices, InvalidCredentials
+from .util import InvalidCredentials, NoDevicesError, async_validate_api_devices
 
 DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_EMAIL): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-    }
+    {vol.Required(CONF_EMAIL): cv.string, vol.Required(CONF_PASSWORD): cv.string}
 )
 
 
@@ -92,9 +89,7 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # errors["base"] = "incorrect_email_pass"
 
         return self.async_show_form(
-            step_id="reauth_confirm",
-            data_schema=DATA_SCHEMA,
-            errors=errors,
+            step_id="reauth_confirm", data_schema=DATA_SCHEMA, errors=errors
         )
 
     async def async_step_user(
@@ -138,9 +133,7 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=DATA_SCHEMA,
-            errors=errors,
+            step_id="user", data_schema=DATA_SCHEMA, errors=errors
         )
 
 

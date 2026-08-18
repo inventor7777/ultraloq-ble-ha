@@ -1,4 +1,5 @@
 """Utilities for Ultraloq BLE integration."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -10,9 +11,7 @@ from .const import LOGGER, UL_ERRORS
 from .utecio.api import InvalidCredentials, InvalidResponse, UtecClient
 
 
-async def async_validate_api(
-    hass: HomeAssistant, email: str, password: str
-) -> bool:
+async def async_validate_api(hass: HomeAssistant, email: str, password: str) -> bool:
     """Get data from API."""
 
     await async_validate_api_devices(hass, email, password)

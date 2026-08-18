@@ -3,7 +3,6 @@
 import ast
 from pathlib import Path
 
-
 source = (
     Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/ble/device.py"
 ).read_text()

@@ -1,31 +1,24 @@
 import asyncio
+from collections.abc import Awaitable, Callable
 import datetime
 import hashlib
 import logging
 import struct
-from collections.abc import Awaitable, Callable
 from typing import Any
 
+from bleak import BleakClient
+from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.backends.device import BLEDevice
+from bleak.exc import BleakError
+from bleak_retry_connector import BleakNotFoundError, establish_connection, get_device
+from Crypto.Cipher import AES
 from ecdsa import SECP128r1, SigningKey
 from ecdsa.ellipticcurve import Point
 
-from bleak import BleakClient
-from bleak.backends.device import BLEDevice
-from bleak.exc import BleakError
-from bleak_retry_connector import establish_connection, BleakNotFoundError, get_device
-
-from .. import (
-    DeviceDefinition,
-    GenericLock,
-    canonical_model,
-    known_devices,
-    logger,
-)
+from .. import DeviceDefinition, GenericLock, canonical_model, known_devices, logger
+from ..const import BATTERY_LEVEL, DOOR_STATUS, LOCK_MODE, CRC8Table
+from ..enums import BLECommandCode, BleResponseCode, DeviceKeyUUID, DeviceServiceUUID
 from ..util import bytes_to_ascii, bytes_to_int2, date_from_4bytes, decode_password
-from ..const import BATTERY_LEVEL, CRC8Table, DOOR_STATUS, LOCK_MODE
-from ..enums import BleResponseCode, BLECommandCode, DeviceServiceUUID, DeviceKeyUUID
-from Crypto.Cipher import AES
-from bleak.backends.characteristic import BleakGATTCharacteristic
 
 RESPONSE_TIMEOUT_SECONDS = 15
 COMMAND_LOCK_TIMEOUT_SECONDS = 90
@@ -140,7 +133,9 @@ class UtecBleDevice:
         capabilities = known_devices.get(canonical_model(device_model))
         if isinstance(capabilities, DeviceDefinition):
             return capabilities
-        if isinstance(capabilities, type) and issubclass(capabilities, DeviceDefinition):
+        if isinstance(capabilities, type) and issubclass(
+            capabilities, DeviceDefinition
+        ):
             return capabilities()
 
         logger.warning("Unknown Ultraloq model from API: %s", device_model)
@@ -207,7 +202,9 @@ class UtecBleDevice:
         """Queue and send one command sequence without interleaving requests."""
 
         if skip_if_busy and self.is_busy:
-            self.debug("(%s) Skipping request sequence while lock is busy.", self.mac_uuid)
+            self.debug(
+                "(%s) Skipping request sequence while lock is busy.", self.mac_uuid
+            )
             return False
 
         try:
@@ -282,7 +279,11 @@ class UtecBleDevice:
                     if not self.wurx_uuid:
                         raise
 
-                    self.debug("(%s) Attempting wake-up path via %s", self.mac_uuid, self.wurx_uuid)
+                    self.debug(
+                        "(%s) Attempting wake-up path via %s",
+                        self.mac_uuid,
+                        self.wurx_uuid,
+                    )
                     await self.async_wakeup_device()
                     if not (device := await self._get_bledevice(self.mac_uuid)):
                         raise BleakNotFoundError("Wakeup device not found.")
@@ -293,7 +294,9 @@ class UtecBleDevice:
                         getattr(device, "address", None),
                         getattr(device, "details", None),
                     )
-                    self.debug("(%s) Establishing post-wake BLE connection", self.mac_uuid)
+                    self.debug(
+                        "(%s) Establishing post-wake BLE connection", self.mac_uuid
+                    )
 
                     client = await establish_connection(
                         client_class=BleakClient,
@@ -326,7 +329,11 @@ class UtecBleDevice:
                 aes_key = await UtecBleDeviceKey.get_shared_key(
                     client=client, device=self
                 )
-                self.debug("(%s) Shared key negotiation complete key_len=%s", self.mac_uuid, len(aes_key))
+                self.debug(
+                    "(%s) Shared key negotiation complete key_len=%s",
+                    self.mac_uuid,
+                    len(aes_key),
+                )
             except Exception as err:
                 self.debug(
                     "(%s) Shared key negotiation failed: %s: %s",
@@ -346,7 +353,9 @@ class UtecBleDevice:
                     await response._receive_write_response(sender, data)
 
             self.debug("(%s) Starting data notifications", self.mac_uuid)
-            await client.start_notify(DeviceServiceUUID.DATA.value, dispatch_notification)
+            await client.start_notify(
+                DeviceServiceUUID.DATA.value, dispatch_notification
+            )
             notifications_started = True
 
             for request in self._requests[:]:
@@ -433,7 +442,9 @@ class UtecBleDevice:
             )
             return None
         if device is None:
-            self.debug("(%s) BLE lookup returned no device for %s", self.mac_uuid, address)
+            self.debug(
+                "(%s) BLE lookup returned no device for %s", self.mac_uuid, address
+            )
         else:
             self.debug(
                 "(%s) BLE lookup resolved address=%s as name=%s device_address=%s",
@@ -845,11 +856,15 @@ class UtecBleResponse:
 
             elif self.command == BleResponseCode.GET_MUTE:
                 self.device.mute = bool(self.data[0])
-                self.device.debug("(%s) mute:%s", self.device.mac_uuid, self.device.mute)
+                self.device.debug(
+                    "(%s) mute:%s", self.device.mac_uuid, self.device.mute
+                )
 
             elif self.command == BleResponseCode.GET_SN:
                 self.device.sn = bytes_to_ascii(self.data) or ""
-                self.device.debug("(%s) serial:%s", self.device.mac_uuid, self.device.sn)
+                self.device.debug(
+                    "(%s) serial:%s", self.device.mac_uuid, self.device.sn
+                )
 
             elif self.command == BleResponseCode.READ_TIME:
                 self.device.calendar = date_from_4bytes(self.data)
@@ -858,9 +873,7 @@ class UtecBleResponse:
                         datetime.datetime.now() - self.device.calendar
                     )
                 self.device.debug(
-                    "(%s) device time:%s",
-                    self.device.mac_uuid,
-                    self.device.calendar,
+                    "(%s) device time:%s", self.device.mac_uuid, self.device.calendar
                 )
 
             elif self.command == BleResponseCode.SET_WORK_MODE:
@@ -927,7 +940,11 @@ class UtecBleDeviceKey:
         )
         if client.services.get_characteristic(DeviceKeyUUID.STATIC.value):
             device.debug("(%s) Using STATIC key exchange.", client.address)
-            device.debug("(%s) Reading STATIC key characteristic %s", client.address, DeviceKeyUUID.STATIC.value)
+            device.debug(
+                "(%s) Reading STATIC key characteristic %s",
+                client.address,
+                DeviceKeyUUID.STATIC.value,
+            )
             secret = await client.read_gatt_char(DeviceKeyUUID.STATIC.value)
             device.debug(
                 "(%s) STATIC key secret:%s", client.address, _redacted_bytes(secret)
@@ -947,9 +964,9 @@ class UtecBleDeviceKey:
         try:
             private_key = SigningKey.generate(curve=SECP128r1)
             received_pubkey = []
-            public_key = private_key.get_verifying_key()  # type: ignore # noqa
-            pub_x = public_key.pubkey.point.x().to_bytes(16, "little")  # type: ignore # noqa
-            pub_y = public_key.pubkey.point.y().to_bytes(16, "little")  # type: ignore # noqa
+            public_key = private_key.get_verifying_key()  # type: ignore
+            pub_x = public_key.pubkey.point.x().to_bytes(16, "little")  # type: ignore
+            pub_y = public_key.pubkey.point.y().to_bytes(16, "little")  # type: ignore
 
             notification_event = asyncio.Event()
 
@@ -967,10 +984,18 @@ class UtecBleDeviceKey:
             device.debug("(%s) Starting ECC notify.", client.address)
             await client.start_notify(DeviceKeyUUID.ECC.value, notification_handler)
             try:
-                device.debug("(%s) ECC notify active on %s", client.address, DeviceKeyUUID.ECC.value)
-                device.debug("(%s) Writing ECC public key X=%s", client.address, pub_x.hex())
+                device.debug(
+                    "(%s) ECC notify active on %s",
+                    client.address,
+                    DeviceKeyUUID.ECC.value,
+                )
+                device.debug(
+                    "(%s) Writing ECC public key X=%s", client.address, pub_x.hex()
+                )
                 await client.write_gatt_char(DeviceKeyUUID.ECC.value, pub_x)
-                device.debug("(%s) Writing ECC public key Y=%s", client.address, pub_y.hex())
+                device.debug(
+                    "(%s) Writing ECC public key Y=%s", client.address, pub_y.hex()
+                )
                 await client.write_gatt_char(DeviceKeyUUID.ECC.value, pub_y)
                 device.debug("(%s) Waiting for ECC key response.", client.address)
                 await asyncio.wait_for(
@@ -989,12 +1014,10 @@ class UtecBleDeviceKey:
                 int.from_bytes(received_pubkey[0], "little"),
                 int.from_bytes(received_pubkey[1], "little"),
             )
-            shared_point = private_key.privkey.secret_multiplier * rec_key_point  # type: ignore # noqa
+            shared_point = private_key.privkey.secret_multiplier * rec_key_point  # type: ignore
             shared_key = int.to_bytes(shared_point.x(), 16, "little")
             device.debug(
-                "(%s) ECC key updated: %s",
-                client.address,
-                _redacted_bytes(shared_key),
+                "(%s) ECC key updated: %s", client.address, _redacted_bytes(shared_key)
             )
             return shared_key
         except Exception as e:
@@ -1004,7 +1027,11 @@ class UtecBleDeviceKey:
     @staticmethod
     async def get_md5_key(client: BleakClient, device: UtecBleDevice) -> bytes:
         try:
-            device.debug("(%s) Reading MD5 key characteristic %s", client.address, DeviceKeyUUID.MD5.value)
+            device.debug(
+                "(%s) Reading MD5 key characteristic %s",
+                client.address,
+                DeviceKeyUUID.MD5.value,
+            )
             secret = await client.read_gatt_char(DeviceKeyUUID.MD5.value)
 
             device.debug(

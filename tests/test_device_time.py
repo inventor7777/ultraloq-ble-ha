@@ -5,9 +5,7 @@ import datetime
 import importlib.util
 from pathlib import Path
 
-path = (
-    Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/util.py"
-)
+path = Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/util.py"
 spec = importlib.util.spec_from_file_location("utecio_util", path)
 util = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(util)
@@ -17,8 +15,7 @@ read_payload = bytes.fromhex("4aab246a")
 assert util.date_from_4bytes(read_payload) == device_time
 assert util.date_to_4bytes(device_time) == read_payload
 assert (
-    util.date_to_4bytes(datetime.datetime(2026, 8, 18, 11, 7, 47)).hex()
-    == "efb1246a"
+    util.date_to_4bytes(datetime.datetime(2026, 8, 18, 11, 7, 47)).hex() == "efb1246a"
 )
 
 try:

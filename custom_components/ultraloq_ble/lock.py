@@ -1,26 +1,19 @@
 """Lock platform for Ultraloq integration."""
+
 from __future__ import annotations
 
-from typing import Any
 from datetime import timedelta
+from typing import Any
 
 from bleak.backends.device import BLEDevice
-from .utecio.ble.lock import UtecBleLock
-from .utecio.ble.device import UtecBleNotFoundError, UtecBleDeviceError
-from .utecio.enums import DeviceLockStatus
 
 from homeassistant.components import bluetooth
-from homeassistant.components.lock import (
-    LockEntity,
-    LockEntityFeature,
-)
+from homeassistant.components.lock import LockEntity, LockEntityFeature
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_SCAN_INTERVAL,
-)
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 
@@ -33,6 +26,9 @@ from .const import (
     UTEC_LOCKDATA,
 )
 from .entity import UltraloqEntity
+from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
+from .utecio.ble.lock import UtecBleLock
+from .utecio.enums import DeviceLockStatus
 
 
 async def async_setup_entry(
@@ -47,10 +43,7 @@ async def async_setup_entry(
 
     for index, lock in enumerate(data):
         add = UtecLock(
-            hass,
-            lock,
-            scan_interval=scan_interval,
-            poll_offset=index * stagger_delay,
+            hass, lock, scan_interval=scan_interval, poll_offset=index * stagger_delay
         )
         entities.append(add)
     async_add_entities(new_entities=entities)
@@ -103,7 +96,7 @@ class UtecLock(UltraloqEntity, LockEntity):
     def unique_id(self) -> str:
         """Sets unique ID for this entity."""
 
-        return "ul_" + device_registry.format_mac(self.lock.mac_uuid)
+        return "ul_" + dr.format_mac(self.lock.mac_uuid)
 
     def _sync_state_from_lock(self) -> None:
         """Update the entity state from the latest lock data."""
@@ -161,10 +154,7 @@ class UtecLock(UltraloqEntity, LockEntity):
         address = self.lock.wurx_uuid if self.lock.wurx_uuid else self.lock.mac_uuid
         self.async_on_remove(
             bluetooth.async_track_unavailable(
-                self.hass,
-                self._unavailable_callback,
-                address,
-                connectable=False,
+                self.hass, self._unavailable_callback, address, connectable=False
             )
         )
         self.async_on_remove(
@@ -310,9 +300,7 @@ class UtecLock(UltraloqEntity, LockEntity):
             self.update_track_cancel()
             self.update_track_cancel = None
         self.update_track_cancel = async_call_later(
-            self.hass,
-            timedelta(seconds=offset),
-            self._schedule_request_update,
+            self.hass, timedelta(seconds=offset), self._schedule_request_update
         )
 
     @callback

@@ -1,5 +1,5 @@
-import datetime
 from collections.abc import Callable
+import datetime
 
 from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import date_from_4bytes, date_to_4bytes, to_byte_array
@@ -29,7 +29,9 @@ class UtecBleLock(UtecBleDevice):
 
     async def async_unlock(self, update: bool = True):
         def queue():
-            self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
+            self.add_request(
+                UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
+            )
             self.add_request(
                 UtecBleRequest(
                     BLECommandCode.UNLOCK,
@@ -44,7 +46,9 @@ class UtecBleLock(UtecBleDevice):
 
     async def async_lock(self, update: bool = True):
         def queue():
-            self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
+            self.add_request(
+                UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
+            )
             self.add_request(
                 UtecBleRequest(
                     BLECommandCode.BOLT_LOCK,
@@ -154,7 +158,9 @@ class UtecBleLock(UtecBleDevice):
 
     async def async_set_workmode(self, mode: DeviceLockWorkMode):
         def queue():
-            self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
+            self.add_request(
+                UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
+            )
             command = (
                 BLECommandCode.SET_LOCK_STATUS
                 if self.capabilities.bt264
@@ -184,7 +190,9 @@ class UtecBleLock(UtecBleDevice):
         self.debug("(%s) %s - Updating lock data...", self.mac_uuid, self.name)
 
         def queue():
-            self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True))
+            self.add_request(
+                UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
+            )
             self.add_request(UtecBleRequest(BLECommandCode.LOCK_STATUS))
             if not self.capabilities.bt264:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_LOCK_STATUS))

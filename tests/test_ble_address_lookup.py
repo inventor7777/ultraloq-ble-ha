@@ -3,7 +3,6 @@
 import ast
 from pathlib import Path
 
-
 module = ast.parse(
     (
         Path(__file__).parents[1]
@@ -11,10 +10,14 @@ module = ast.parse(
     ).read_text()
 )
 device = next(
-    node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "UtecBleDevice"
+    node
+    for node in module.body
+    if isinstance(node, ast.ClassDef) and node.name == "UtecBleDevice"
 )
 lookup = next(
-    node for node in device.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "_get_bledevice"
+    node
+    for node in device.body
+    if isinstance(node, ast.AsyncFunctionDef) and node.name == "_get_bledevice"
 )
 
 assert any(
