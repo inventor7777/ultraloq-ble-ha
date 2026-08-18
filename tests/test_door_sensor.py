@@ -9,6 +9,6 @@ sensor_source = (Path(__file__).parents[1] / "custom_components/ultraloq_ble/sen
 assert "BinarySensorDeviceClass.DOOR" in source
 assert "if lock.capabilities.doorsensor" in source
 assert "def is_on(self) -> bool | None" in source
-assert "self.lock.bolt_status == 0" in source
+assert "self.lock.door_status == 0" in source
 assert "Platform.BINARY_SENSOR" in const_source
 assert 'key="bolt_status"' not in sensor_source

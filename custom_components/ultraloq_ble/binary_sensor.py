@@ -64,13 +64,13 @@ class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):
 
         return (
             getattr(self.lock, "_ha_available", True)
-            and self.lock.bolt_status in (0, 1)
+            and self.lock.door_status in (0, 1)
         )
 
     @property
     def is_on(self) -> bool | None:
         """Return true when the door is open."""
 
-        if self.lock.bolt_status not in (0, 1):
+        if self.lock.door_status not in (0, 1):
             return None
-        return self.lock.bolt_status == 0
+        return self.lock.door_status == 0

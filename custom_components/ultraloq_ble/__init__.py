@@ -35,7 +35,7 @@ from .const import (
     UTEC_LOCKDATA,
 )
 from .util import async_fetch_api_devices
-from .utecio.const import BOLT_STATUS, DOOR_STATUS
+from .utecio.const import DOOR_STATUS
 from .utecio.api import build_ble_devices
 from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
 from .utecio.ble.lock import UtecBleLock
@@ -96,10 +96,9 @@ async def _async_handle_get_device_information(
     state: dict[str, Any] = {
         "lock_status": _enum_name(DeviceLockStatus, lock.lock_status)
     }
-    status_key = "door_status" if lock.capabilities.doorsensor else "bolt_status"
-    state[status_key] = (
-        DOOR_STATUS if lock.capabilities.doorsensor else BOLT_STATUS
-    ).get(lock.bolt_status, f"Unknown ({lock.bolt_status})")
+    state["door_status"] = DOOR_STATUS.get(
+        lock.door_status, f"Unknown ({lock.door_status})"
+    )
     if lock.battery != DeviceBatteryLevel.NOTSET.value:
         state["battery_level"] = _enum_name(DeviceBatteryLevel, lock.battery)
     if lock.capabilities.autolock and lock.autolock_time >= 0:

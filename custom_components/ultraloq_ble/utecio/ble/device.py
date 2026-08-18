@@ -22,7 +22,7 @@ from .. import (
     logger,
 )
 from ..util import bytes_to_ascii, bytes_to_int2, date_from_4bytes, decode_password
-from ..const import BATTERY_LEVEL, BOLT_STATUS, CRC8Table, DOOR_STATUS, LOCK_MODE
+from ..const import BATTERY_LEVEL, CRC8Table, DOOR_STATUS, LOCK_MODE
 from ..enums import BleResponseCode, BLECommandCode, DeviceServiceUUID, DeviceKeyUUID
 from Crypto.Cipher import AES
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -122,7 +122,7 @@ class UtecBleDevice:
         self.autolock_time: int = -1
         self.battery: int = -1
         self.mute: bool = False
-        self.bolt_status: int = -1
+        self.door_status: int = -1
         self.sn: str = ""
         self.calendar: datetime.datetime | None = None
         self.device_time_offset: datetime.timedelta | None = None
@@ -809,19 +809,14 @@ class UtecBleResponse:
 
             if self.command == BleResponseCode.GET_LOCK_STATUS:
                 self.device.lock_mode = int(self.data[0])
-                self.device.bolt_status = int(self.data[1])
-                status_name = "door" if self.device.capabilities.doorsensor else "bolt"
-                status_map = (
-                    DOOR_STATUS if self.device.capabilities.doorsensor else BOLT_STATUS
-                )
+                self.device.door_status = int(self.data[1])
                 self.device.debug(
-                    "(%s) lock:%s (%s) | %s:%s (%s)",
+                    "(%s) lock:%s (%s) | door:%s (%s)",
                     self.device.mac_uuid,
                     self.device.lock_mode,
                     LOCK_MODE.get(self.device.lock_mode, "Unknown"),
-                    status_name,
-                    self.device.bolt_status,
-                    status_map.get(self.device.bolt_status, "Unknown"),
+                    self.device.door_status,
+                    DOOR_STATUS.get(self.device.door_status, "Unknown"),
                 )
 
             elif self.command == BleResponseCode.SET_LOCK_STATUS:
@@ -890,14 +885,12 @@ class UtecBleResponse:
 
             elif self.command == BleResponseCode.LOCK_STATUS:
                 self.device.lock_status = int(self.data[0])
-                self.device.bolt_status = int(self.data[1])
-                status_name = "door" if self.device.capabilities.doorsensor else "bolt"
+                self.device.door_status = int(self.data[1])
                 self.device.debug(
-                    "(%s) lock:%s | %s:%s",
+                    "(%s) lock:%s | door:%s",
                     self.device.mac_uuid,
                     self.device.lock_status,
-                    status_name,
-                    self.device.bolt_status,
+                    self.device.door_status,
                 )
                 if self.length > 16:
                     self.device.battery = int(self.data[2])
