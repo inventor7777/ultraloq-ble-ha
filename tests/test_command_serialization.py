@@ -24,3 +24,8 @@ implementation = ast.unparse(execute)
 assert "wait_for" in implementation
 assert "COMMAND_LOCK_TIMEOUT_SECONDS" in implementation
 assert "send_requests" in implementation
+
+lock_source = (
+    Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/ble/lock.py"
+).read_text()
+assert "\n                if self.capabilities.mutemode:\n" in lock_source

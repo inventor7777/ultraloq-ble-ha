@@ -736,12 +736,8 @@ class UtecBleResponse:
 
     @property
     def is_valid(self):
-        cmd = self.command
-        return (
-            True
-            if (self.completed and cmd and isinstance(cmd, BleResponseCode))
-            else False
-        )
+        expected = BleResponseCode.__members__.get(self.request.command.name)
+        return self.completed and expected is not None and self.command is expected
 
     @property
     def completed(self):
@@ -806,6 +802,7 @@ class UtecBleResponse:
                     self.command.name,
                     self.package.hex(),
                 )
+                return
 
             if self.command == BleResponseCode.GET_LOCK_STATUS:
                 self.device.lock_mode = int(self.data[0])

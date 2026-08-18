@@ -189,7 +189,8 @@ class UtecBleLock(UtecBleDevice):
             if not self.capabilities.bt264:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_LOCK_STATUS))
                 self.add_request(UtecBleRequest(BLECommandCode.GET_BATTERY))
-                self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
+                if self.capabilities.mutemode:
+                    self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
             if self.capabilities.autolock:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_AUTOLOCK))
 
