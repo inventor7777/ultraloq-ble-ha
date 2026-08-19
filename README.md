@@ -7,7 +7,7 @@
 
 This is a [forked](https://github.com/maeneak/utecio-ha) Home Assistant custom integration for Ultraloq / U-Tec / Xthings BLE locks.
 
-I really wanted to have local control over my U-Bolt Pro locks, and the original integration wouldn't even start the config process. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addtion to extending lock support, autolock status and battery level are now first class sensors instead of being buried in the attributes. This integration should have all of the original features *(plus first class sensors)* for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
+I really wanted to have local control over my U-Bolt Pro locks, and the original integration wouldn't even start the config process. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addition to extending lock support, battery, door, and sound status are now first-class entities, along with controls for auto-lock time and lock mode. This integration should have all of the original features for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
 
 ## Requirements
 - Active (GATT) Bluetooth support in Home Assistant, whether through [your host's built in Bluetooth](https://www.home-assistant.io/integrations/bluetooth/), a [local USB adapter](https://a.co/d/09RioHgV), or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/).
@@ -15,16 +15,22 @@ I really wanted to have local control over my U-Bolt Pro locks, and the original
 
 ## Features
 
-Entities currently exposed per lock:
-- `lock.name_of_lock`
-- `number.autolock_time`
-- `select.lock_mode` (when supported by lock)
-- `sensor.battery_level`
-- `sensor.lock_mode`
-- `sensor.bolt_status` (when the model reports meaningful bolt status. U-Bolt Pros do not.)
+Entities currently exposed per lock (when supported by your lock):
 
-Integration service:
-- `ultraloq_ble.refresh_locks` refreshes cached lock metadata from the cloud and reloads the integration.
+- `lock.name_of_lock`
+- `sensor.battery_level`
+- `binary_sensor.door`
+- `binary_sensor.sound`
+- `number.autolock_time`
+- `select.lock_mode`
+- `button.rescan`
+- `button.restart`
+
+Actions:
+
+- `ultraloq_ble.refresh_locks`: refreshes cached lock metadata from the cloud and reloads the integration.
+- `ultraloq_ble.get_device_information`: queries all supported information from a selected lock over BLE.
+- `ultraloq_ble.set_device_time`: sets a selected lock's clock from Home Assistant's local time or a supplied date and time.
 
 Important Bluetooth note:
 - Passive advertisement-only proxies are not enough for lock control
@@ -45,7 +51,7 @@ Or manually:
 ## Notes
 
 ### Speed and Reliability
-This integration relies on a direct, active BLE connection to the lock. Ultraloq locks are VERY stingy about BLE connections, even with the offical WiFi bridge. This means that updates may fail, and the update speed will be much lower than a normal Zigbee/WiFi lock. 
+This integration relies on a direct, active BLE connection to the lock. Ultraloq locks are VERY stingy about BLE connections, even with the offical WiFi bridge. This means that updates may occasionally fail, and the update speed will be much lower than a normal Zigbee/WiFi lock. 
 
 ### Offline-ish Behavior
 
@@ -65,17 +71,22 @@ is intended to happen locally over BLE.
 
 I am working on a local only version, but I am still exploring whether it's viable for normal users.
 
-### Sensors
+### Entities
 
 Each lock may expose:
-- `Battery Level`
-- `Autolock Time`
-- `Lock Mode`
-- `Bolt Status`
+
+- `sensor.battery_level`: reports High, Medium, Low, or Critical.
+- `binary_sensor.door`: reports open or closed on models with door-sensor support.
+- `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
+- `number.autolock_time`: controls the lock's auto-lock delay in seconds.
+- `select.lock_mode`: contains only the modes supported by that model.
+- `button.rescan`: immediately requests fresh state over BLE.
+- `button.restart`: reboots the lock over BLE.
 
 Notes:
-- `Bolt Status` is skipped for models where it is known to be useless or always unavailable
-- `Autolock Time` is exposed as a duration sensor in seconds
+
+- Availability is shared across a lock's entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted.
+- Capability-dependent entities are only created when the model mapping reports support.
 
 ### Known Limitations
 
@@ -95,4 +106,4 @@ Check:
 - the lock is not only being seen as `connectable: false`
 - Unsupported device, in which case you could try reporting an issue here
 
-*Full disclaimer: Most of the improvements from the original were by GPT 5.4 Codex. However, I personally use this integration and I am happy with it, so I am sharing it in case it could be useful to anyone else.*
+*Full disclaimer: Most of the improvements from the original were by GPT 5.6 Sol and GPT 5.4 Codex. However, I personally use this integration and I am happy with it, so I am sharing it in case it could be useful to anyone else.*
