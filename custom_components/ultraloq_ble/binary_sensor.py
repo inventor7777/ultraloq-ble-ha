@@ -27,6 +27,9 @@ async def async_setup_entry(
     entities.extend(
         UltraloqDoorSensor(lock) for lock in locks if lock.capabilities.doorsensor
     )
+    entities.extend(
+        UltraloqAutolockSensor(lock) for lock in locks if lock.capabilities.autolock
+    )
     async_add_entities(entities)
 
 
@@ -45,6 +48,30 @@ class UltraloqSoundSensor(UltraloqEntity, BinarySensorEntity):
         """Return true when the lock is not muted."""
 
         return not self.lock.mute
+
+
+class UltraloqAutolockSensor(UltraloqEntity, BinarySensorEntity):
+    """Whether auto-lock is enabled."""
+
+    _attr_name = "Autolock"
+    _attr_icon = "mdi:timer-lock-outline"
+
+    def __init__(self, lock: UtecBleLock) -> None:
+        """Initialize the sensor."""
+
+        super().__init__(lock, "autolock")
+
+    @property
+    def available(self) -> bool:
+        """Return availability after auto-lock has been read."""
+
+        return super().available and self.lock.autolock_time >= 0
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether auto-lock has a positive delay."""
+
+        return self.lock.autolock_time > 0
 
 
 class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):

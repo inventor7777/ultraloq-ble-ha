@@ -52,6 +52,7 @@ SENSORS: tuple[UltraloqSensorDescription, ...] = (
         key="autolock_time",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_display_precision=0,
         icon="mdi:timer-lock-outline",
         value_fn=lambda lock: lock.autolock_time if lock.autolock_time >= 0 else None,
     ),

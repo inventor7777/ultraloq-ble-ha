@@ -20,6 +20,7 @@ Entities currently exposed per lock (when supported by your lock):
 - `lock.name_of_lock`
 - `sensor.battery_level`
 - `sensor.autolock_time`
+- `binary_sensor.autolock`
 - `binary_sensor.door`
 - `binary_sensor.sound`
 - `select.lock_mode`
@@ -78,6 +79,7 @@ Each lock may expose:
 
 - `sensor.battery_level`: reports High, Medium, Low, or Critical.
 - `sensor.autolock_time`: reports the current auto-lock delay in seconds.
+- `binary_sensor.autolock`: reports whether auto-lock is enabled.
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
 - `select.lock_mode`: contains only the modes supported by that model.
