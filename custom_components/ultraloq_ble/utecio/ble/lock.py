@@ -8,18 +8,14 @@ from .device import UtecBleDevice, UtecBleRequest
 STATUS_SETTLE_SECONDS = 2
 
 
-def build_autolock_payload(
-    seconds: int, door_sensor: bool, enabled: bool, enabled_value: int
-) -> bytes:
-    """Build a four-byte U-Bolt auto-lock payload."""
+def build_autolock_payload(seconds: int, door_sensor: bool, enabled: bool) -> bytes:
+    """Build the three-byte SET_AUTOLOCK payload."""
 
     if not 0 <= seconds <= 0xFFFF:
         raise ValueError("Auto-lock duration must be between 0 and 65535 seconds.")
-    if not 0 <= enabled_value <= 0xFF:
-        raise ValueError("Invalid auto-lock enabled value.")
     if not enabled:
-        return bytes(4)
-    return to_byte_array(seconds, 2) + bytes([not door_sensor, enabled_value])
+        return bytes(3)
+    return to_byte_array(seconds, 2) + bytes([not door_sensor])
 
 
 def parse_autolock_hex(value: str) -> bytes:

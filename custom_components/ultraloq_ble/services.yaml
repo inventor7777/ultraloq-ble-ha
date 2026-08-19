@@ -53,6 +53,6 @@ set_device_autolock:
         boolean:
     manual:
       required: false
-      example: "3c0000ff"
+      example: "3c0000"
       selector:
         text:

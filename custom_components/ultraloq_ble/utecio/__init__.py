@@ -23,7 +23,6 @@ class DeviceDefinition:
     rfid_twice: bool = False
     autobolt: bool = False
     autolock: bool = False
-    autolock_enabled_value: int | None = None
     autounlock: bool = False
     direction: bool = False
     update_ota: bool = False
@@ -63,17 +62,11 @@ class DeviceDefinition:
     adduserremovenum: int = 4
 
 
-def _capabilities(
-    *enabled: str,
-    autolock_enabled_value: int | None = None,
-    adduserremovenum: int = 4,
-) -> DeviceDefinition:
+def _capabilities(*enabled: str, adduserremovenum: int = 4) -> DeviceDefinition:
     """Build a checked capability record from enabled field names."""
 
     return DeviceDefinition(
-        **dict.fromkeys(enabled, True),
-        autolock_enabled_value=autolock_enabled_value,
-        adduserremovenum=adduserremovenum,
+        **dict.fromkeys(enabled, True), adduserremovenum=adduserremovenum
     )
 
 
@@ -120,7 +113,6 @@ known_devices: dict[str, DeviceDefinition] = {
         "direction", "alerts", "mutemode", "manual", "shakeopen", "havesn",
         "moreadmin", "needreadmodel", "keypad", "fingprinter", "lockout",
         "timelimit", "needregristerpwd", "bt264", "keepalive",
-        autolock_enabled_value=0xFF,
     ),
     "U-Bolt-WiFi": _capabilities(
         "lock", "bluetooth", "autolock", "update_ota", "update_wifi",

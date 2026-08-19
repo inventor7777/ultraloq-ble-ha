@@ -195,12 +195,6 @@ async def _async_handle_set_device_autolock(
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
     else:
-        enabled_value = lock.capabilities.autolock_enabled_value
-        if enabled_value is None:
-            raise ServiceValidationError(
-                f"Structured auto-lock settings are not known for {lock.model}; "
-                "use Manual instead."
-            )
         duration = call.data[AUTOLOCK_DURATION]
         seconds = duration.total_seconds()
         if not seconds.is_integer():
@@ -210,7 +204,6 @@ async def _async_handle_set_device_autolock(
                 int(seconds),
                 call.data[AUTOLOCK_DOOR_SENSOR],
                 call.data[AUTOLOCK_ENABLED],
-                enabled_value,
             )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err

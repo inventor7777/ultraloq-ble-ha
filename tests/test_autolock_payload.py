@@ -19,10 +19,10 @@ exec(compile(ast.Module(list(functions.values()), []), __file__, "exec"), namesp
 build = namespace["build_autolock_payload"]
 parse = namespace["parse_autolock_hex"]
 
-assert build(60, True, True, 0xFF).hex() == "3c0000ff"
-assert build(300, False, True, 0xFF).hex() == "2c0101ff"
-assert build(300, False, False, 0xFF).hex() == "00000000"
-assert parse("0x3c0000ff").hex() == "3c0000ff"
+assert build(60, True, True).hex() == "3c0000"
+assert build(300, False, True).hex() == "2c0101"
+assert build(300, False, False).hex() == "000000"
+assert parse("0x3c0000").hex() == "3c0000"
 
 for invalid in ("", "not hex"):
     try:

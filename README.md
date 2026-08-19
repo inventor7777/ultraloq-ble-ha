@@ -93,7 +93,6 @@ Notes:
 
 - Bluetooth quality matters a lot. Weak or non-connectable advertisements will cause timeouts or unavailable entities. You will need active-capable Bluetooth nodes very close to each lock.
 - Some lock models may still need extra command or capability tuning.
-- Structured auto-lock settings are currently mapped for U-Bolt Pro locks. Other models can use the action's Manual hex field until their payload format is confirmed.
 - State updates after a lock or unlock are very slow and dependent on refresh interval. Perhaps there is a way to subscribe to Ultraloq BLE pushes, but I do not have the tools to reverse engineer such a thing.
 - Shelly Bluetooth proxies are incapable of starting an active GATT BLE connection, so you will need either a USB Bluetooth adapter or an ESPHome device with `active: true` enabled in the Bluetooth configuration.
 - There is a Bleak depreciation warning in the debug logs. I am aware of this but I'd like to get the rest of the implementation stable before attacking that.
