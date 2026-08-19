@@ -16,7 +16,6 @@ PLATFORMS = [
     Platform.LOCK,
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
-    Platform.NUMBER,
     Platform.BUTTON,
     Platform.SELECT,
 ]
@@ -28,6 +27,7 @@ CONF_STAGGER_DELAY = "stagger_delay"
 SERVICE_REFRESH_LOCKS = "refresh_locks"
 SERVICE_GET_DEVICE_INFORMATION = "get_device_information"
 SERVICE_SET_DEVICE_TIME = "set_device_time"
+SERVICE_SET_DEVICE_AUTOLOCK = "set_device_autolock"
 
 UL_ERRORS = (asyncio.TimeoutError, ClientConnectionError)
 

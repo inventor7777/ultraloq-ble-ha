@@ -24,3 +24,35 @@ set_device_time:
       example: "2026-08-18T16:30:00-05:00"
       selector:
         datetime:
+
+set_device_autolock:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: ultraloq_ble
+    duration:
+      required: true
+      default:
+        minutes: 1
+      selector:
+        duration:
+          enable_day: false
+          enable_millisecond: false
+    door_sensor:
+      required: true
+      default: false
+      selector:
+        boolean:
+    enabled:
+      required: true
+      default: true
+      selector:
+        boolean:
+    manual:
+      required: false
+      example: "3c0000ff"
+      selector:
+        text:

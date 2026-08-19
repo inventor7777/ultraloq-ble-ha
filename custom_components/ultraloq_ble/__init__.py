@@ -31,22 +31,38 @@ from .const import (
     PLATFORMS,
     SERVICE_GET_DEVICE_INFORMATION,
     SERVICE_REFRESH_LOCKS,
+    SERVICE_SET_DEVICE_AUTOLOCK,
     SERVICE_SET_DEVICE_TIME,
     UPDATE_LISTENER,
     UTEC_LOCKDATA,
 )
 from .utecio.api import build_ble_devices
 from .utecio.ble.device import UtecBleDeviceError, UtecBleNotFoundError
-from .utecio.ble.lock import UtecBleLock
+from .utecio.ble.lock import UtecBleLock, build_autolock_payload, parse_autolock_hex
 from .utecio.const import DOOR_STATUS
 from .utecio.enums import DeviceBatteryLevel, DeviceLockStatus, DeviceLockWorkMode
 from .util import async_fetch_api_devices
 
 DEVICE_ID = "device_id"
 DEVICE_TIME = "datetime"
+AUTOLOCK_DURATION = "duration"
+AUTOLOCK_DOOR_SENSOR = "door_sensor"
+AUTOLOCK_ENABLED = "enabled"
+AUTOLOCK_MANUAL = "manual"
 GET_DEVICE_INFORMATION_SCHEMA = vol.Schema({vol.Required(DEVICE_ID): cv.string})
 SET_DEVICE_TIME_SCHEMA = vol.Schema(
     {vol.Required(DEVICE_ID): cv.string, vol.Optional(DEVICE_TIME): cv.string}
+)
+SET_DEVICE_AUTOLOCK_SCHEMA = vol.Schema(
+    {
+        vol.Required(DEVICE_ID): cv.string,
+        vol.Optional(AUTOLOCK_DURATION, default={"minutes": 1}): (
+            cv.positive_time_period_dict
+        ),
+        vol.Optional(AUTOLOCK_DOOR_SENSOR, default=False): cv.boolean,
+        vol.Optional(AUTOLOCK_ENABLED, default=True): cv.boolean,
+        vol.Optional(AUTOLOCK_MANUAL): cv.string,
+    }
 )
 
 
@@ -166,6 +182,54 @@ async def _async_handle_set_device_time(
     }
 
 
+async def _async_handle_set_device_autolock(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
+    """Set one lock's auto-lock configuration."""
+
+    lock = _find_lock(hass, call.data[DEVICE_ID])
+    manual = call.data.get(AUTOLOCK_MANUAL, "").strip()
+    if manual:
+        try:
+            payload = parse_autolock_hex(manual)
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+    else:
+        enabled_value = lock.capabilities.autolock_enabled_value
+        if enabled_value is None:
+            raise ServiceValidationError(
+                f"Structured auto-lock settings are not known for {lock.model}; "
+                "use Manual instead."
+            )
+        duration = call.data[AUTOLOCK_DURATION]
+        seconds = duration.total_seconds()
+        if not seconds.is_integer():
+            raise ServiceValidationError("Auto-lock duration must use whole seconds.")
+        try:
+            payload = build_autolock_payload(
+                int(seconds),
+                call.data[AUTOLOCK_DOOR_SENSOR],
+                call.data[AUTOLOCK_ENABLED],
+                enabled_value,
+            )
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+
+    try:
+        await lock.async_set_autolock(payload)
+    except ValueError as err:
+        raise ServiceValidationError(str(err)) from err
+    except (UtecBleDeviceError, UtecBleNotFoundError) as err:
+        raise HomeAssistantError(
+            f"Failed to set auto-lock on {lock.name}: {err}"
+        ) from err
+
+    return {
+        "device": {"name": lock.name, "bluetooth_address": str(lock.mac_uuid)},
+        "payload": payload.hex(),
+    }
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register Ultraloq BLE actions."""
 
@@ -181,6 +245,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         SERVICE_SET_DEVICE_TIME,
         partial(_async_handle_set_device_time, hass),
         schema=SET_DEVICE_TIME_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_DEVICE_AUTOLOCK,
+        partial(_async_handle_set_device_autolock, hass),
+        schema=SET_DEVICE_AUTOLOCK_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
     return True

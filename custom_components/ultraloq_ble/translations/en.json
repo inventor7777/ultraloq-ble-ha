@@ -62,6 +62,32 @@
                 }
             },
             "name": "Set device time"
+        },
+        "set_device_autolock": {
+            "description": "Configure auto-lock on an Ultraloq lock or send a manual SET_AUTOLOCK payload.",
+            "fields": {
+                "device_id": {
+                    "description": "Ultraloq lock whose auto-lock settings should be changed.",
+                    "name": "Device"
+                },
+                "duration": {
+                    "description": "Delay before the lock automatically locks.",
+                    "name": "Time"
+                },
+                "door_sensor": {
+                    "description": "Lock immediately when the door sensor reports closed instead of using timer mode.",
+                    "name": "Door sensor"
+                },
+                "enabled": {
+                    "description": "Turn auto-lock on or off.",
+                    "name": "Enabled"
+                },
+                "manual": {
+                    "description": "Optional raw hexadecimal payload. When supplied, it overrides Time, Door sensor, and Enabled.",
+                    "name": "Manual"
+                }
+            },
+            "name": "Set device auto-lock"
         }
     }
 }

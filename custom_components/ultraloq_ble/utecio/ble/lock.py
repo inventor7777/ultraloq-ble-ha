@@ -8,6 +8,35 @@ from .device import UtecBleDevice, UtecBleRequest
 STATUS_SETTLE_SECONDS = 2
 
 
+def build_autolock_payload(
+    seconds: int, door_sensor: bool, enabled: bool, enabled_value: int
+) -> bytes:
+    """Build a four-byte U-Bolt auto-lock payload."""
+
+    if not 0 <= seconds <= 0xFFFF:
+        raise ValueError("Auto-lock duration must be between 0 and 65535 seconds.")
+    if not 0 <= enabled_value <= 0xFF:
+        raise ValueError("Invalid auto-lock enabled value.")
+    if not enabled:
+        return bytes(4)
+    return to_byte_array(seconds, 2) + bytes([not door_sensor, enabled_value])
+
+
+def parse_autolock_hex(value: str) -> bytes:
+    """Parse a manually supplied auto-lock payload."""
+
+    value = value.strip()
+    if value.lower().startswith("0x"):
+        value = value[2:]
+    try:
+        payload = bytes.fromhex(value)
+    except ValueError as err:
+        raise ValueError("Manual payload must be valid hex.") from err
+    if not payload:
+        raise ValueError("Manual payload cannot be empty.")
+    return payload
+
+
 class UtecBleLock(UtecBleDevice):
     def __init__(
         self,
@@ -170,19 +199,17 @@ class UtecBleLock(UtecBleDevice):
 
         return await self.execute_requests(queue)
 
-    async def async_set_autolock(self, seconds: int):
+    async def async_set_autolock(self, payload: bytes):
+        if not self.capabilities.autolock:
+            raise ValueError(f"{self.name} does not support auto-lock.")
+        if not payload:
+            raise ValueError("Auto-lock payload cannot be empty.")
+
         def queue():
-            if not self.capabilities.autolock:
-                return
             self.add_request(
                 UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
             )
-            self.add_request(
-                UtecBleRequest(
-                    BLECommandCode.SET_AUTOLOCK,
-                    data=to_byte_array(seconds, 2) + bytes([0]),
-                )
-            )
+            self.add_request(UtecBleRequest(BLECommandCode.SET_AUTOLOCK, data=payload))
 
         return await self.execute_requests(queue)
 

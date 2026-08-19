@@ -7,7 +7,7 @@
 
 This is a [forked](https://github.com/maeneak/utecio-ha) Home Assistant custom integration for Ultraloq / U-Tec / Xthings BLE locks.
 
-I really wanted to have local control over my U-Bolt Pro locks, and the original integration wouldn't even start the config process. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addition to extending lock support, battery, door, and sound status are now first-class entities, along with controls for auto-lock time and lock mode. This integration should have all of the original features for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
+I really wanted to have local control over my U-Bolt Pro locks, and the original integration wouldn't even start the config process. So I forked it and fixed the biggest bugs, then did extensive testing and iterating with the help of Codex. In addition to extending lock support, battery, door, and sound status are now first-class entities, along with controls for auto-lock and lock mode. This integration should have all of the original features for non U-Bolt Pro locks, *plus* full support for the U-Bolt Pro locks.
 
 ## Requirements
 - Active (GATT) Bluetooth support in Home Assistant, whether through [your host's built in Bluetooth](https://www.home-assistant.io/integrations/bluetooth/), a [local USB adapter](https://a.co/d/09RioHgV), or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/).
@@ -19,9 +19,9 @@ Entities currently exposed per lock (when supported by your lock):
 
 - `lock.name_of_lock`
 - `sensor.battery_level`
+- `sensor.autolock_time`
 - `binary_sensor.door`
 - `binary_sensor.sound`
-- `number.autolock_time`
 - `select.lock_mode`
 - `button.rescan`
 - `button.restart`
@@ -31,6 +31,7 @@ Actions:
 - `ultraloq_ble.refresh_locks`: refreshes cached lock metadata from the cloud and reloads the integration.
 - `ultraloq_ble.get_device_information`: queries all supported information from a selected lock over BLE.
 - `ultraloq_ble.set_device_time`: sets a selected lock's clock from Home Assistant's local time or a supplied date and time.
+- `ultraloq_ble.set_device_autolock`: configures auto-lock time, door-sensor mode, and enabled state, or sends a manual hex payload.
 
 Important Bluetooth note:
 - Passive advertisement-only proxies are not enough for lock control
@@ -76,9 +77,9 @@ I am working on a local only version, but I am still exploring whether it's viab
 Each lock may expose:
 
 - `sensor.battery_level`: reports High, Medium, Low, or Critical.
+- `sensor.autolock_time`: reports the current auto-lock delay in seconds.
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
-- `number.autolock_time`: controls the lock's auto-lock delay in seconds.
 - `select.lock_mode`: contains only the modes supported by that model.
 - `button.rescan`: immediately requests fresh state over BLE.
 - `button.restart`: reboots the lock over BLE.
@@ -92,7 +93,7 @@ Notes:
 
 - Bluetooth quality matters a lot. Weak or non-connectable advertisements will cause timeouts or unavailable entities. You will need active-capable Bluetooth nodes very close to each lock.
 - Some lock models may still need extra command or capability tuning.
-- The integration exposes the raw autolock controls. The lock seems to discard some seconds inputs, if I could find all of the accepted inputs we could add a proper selector.
+- Structured auto-lock settings are currently mapped for U-Bolt Pro locks. Other models can use the action's Manual hex field until their payload format is confirmed.
 - State updates after a lock or unlock are very slow and dependent on refresh interval. Perhaps there is a way to subscribe to Ultraloq BLE pushes, but I do not have the tools to reverse engineer such a thing.
 - Shelly Bluetooth proxies are incapable of starting an active GATT BLE connection, so you will need either a USB Bluetooth adapter or an ESPHome device with `active: true` enabled in the Bluetooth configuration.
 - There is a Bleak depreciation warning in the debug logs. I am aware of this but I'd like to get the rest of the implementation stable before attacking that.

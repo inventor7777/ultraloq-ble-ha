@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -48,6 +48,13 @@ SENSORS: tuple[UltraloqSensorDescription, ...] = (
         icon="mdi:battery-bluetooth-variant",
         value_fn=_battery_level,
     ),
+    UltraloqSensorDescription(
+        key="autolock_time",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        icon="mdi:timer-lock-outline",
+        value_fn=lambda lock: lock.autolock_time if lock.autolock_time >= 0 else None,
+    ),
 )
 
 
@@ -60,7 +67,10 @@ async def async_setup_entry(
     entities: list[UltraloqSensor] = []
 
     for lock in locks:
-        entities.extend(UltraloqSensor(lock, description) for description in SENSORS)
+        for description in SENSORS:
+            if description.key == "autolock_time" and not lock.capabilities.autolock:
+                continue
+            entities.append(UltraloqSensor(lock, description))
 
     async_add_entities(entities)
 
