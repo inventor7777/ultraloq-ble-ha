@@ -113,6 +113,7 @@ class UtecBleDevice:
         self.lock_status: int = -1
         self.lock_mode: int = -1
         self.autolock_time: int = -1
+        self.autolock_enabled: bool | None = None
         self.battery: int = -1
         self.mute: bool = False
         self.door_status: int = -1
@@ -839,9 +840,18 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.GET_AUTOLOCK:
-                self.device.autolock_time = bytes_to_int2(self.data[:2])
+                data = self.data
+                if len(data) < 4:
+                    raise ValueError(
+                        f"GET_AUTOLOCK returned {len(data)} bytes; expected at least 4"
+                    )
+                self.device.autolock_time = bytes_to_int2(data[:2])
+                self.device.autolock_enabled = bool(data[3])
                 self.device.debug(
-                    "(%s) autolock:%s", self.device.mac_uuid, self.device.autolock_time
+                    "(%s) autolock:%s enabled:%s",
+                    self.device.mac_uuid,
+                    self.device.autolock_time,
+                    self.device.autolock_enabled,
                 )
 
             elif self.command == BleResponseCode.SET_AUTOLOCK:
@@ -893,20 +903,25 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.LOCK_STATUS:
-                self.device.lock_status = int(self.data[0])
-                self.device.door_status = int(self.data[1])
+                data = self.data
+                if len(data) < 2:
+                    raise ValueError(
+                        f"LOCK_STATUS returned {len(data)} bytes; expected at least 2"
+                    )
+                self.device.lock_status = int(data[0])
+                self.device.door_status = int(data[1])
                 self.device.debug(
                     "(%s) lock:%s | door:%s",
                     self.device.mac_uuid,
                     self.device.lock_status,
                     self.device.door_status,
                 )
-                if self.length > 16:
-                    self.device.battery = int(self.data[2])
-                    self.device.lock_mode = int(self.data[3])
-                    self.device.mute = bool(self.data[4])
-                    if self.device.capabilities.bt264 and len(self.data) >= 9:
-                        self.device.calendar = date_from_4bytes(self.data[5:9])
+                if len(data) >= 5:
+                    self.device.battery = int(data[2])
+                    self.device.lock_mode = int(data[3])
+                    self.device.mute = bool(data[4])
+                    if self.device.capabilities.bt264 and len(data) >= 9:
+                        self.device.calendar = date_from_4bytes(data[5:9])
                         self.device.device_time_offset = (
                             datetime.datetime.now() - self.device.calendar
                         )

@@ -65,13 +65,13 @@ class UltraloqAutolockSensor(UltraloqEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return availability after auto-lock has been read."""
 
-        return super().available and self.lock.autolock_time >= 0
+        return super().available and self.lock.autolock_enabled is not None
 
     @property
     def is_on(self) -> bool:
-        """Return whether auto-lock has a positive delay."""
+        """Return whether auto-lock is enabled."""
 
-        return self.lock.autolock_time > 0
+        return bool(self.lock.autolock_enabled)
 
 
 class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):

@@ -46,3 +46,14 @@ lock_source = (
     Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/ble/lock.py"
 ).read_text()
 assert "\n                if self.capabilities.mutemode:\n" in lock_source
+assert "UtecBleRequest(BLECommandCode.GET_AUTOLOCK)" in lock_source
+
+response_source = ast.unparse(
+    next(
+        node
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name == "UtecBleResponse"
+    )
+)
+assert "self.device.autolock_enabled = bool(data[3])" in response_source
+assert "if len(data) >= 5" in response_source

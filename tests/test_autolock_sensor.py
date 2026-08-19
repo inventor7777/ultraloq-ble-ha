@@ -18,4 +18,5 @@ assert (
 )
 assert "class UltraloqAutolockSensor" in binary_source
 assert 'super().__init__(lock, "autolock")' in binary_source
-assert "self.lock.autolock_time > 0" in binary_source
+assert "self.lock.autolock_enabled is not None" in binary_source
+assert "bool(self.lock.autolock_enabled)" in binary_source

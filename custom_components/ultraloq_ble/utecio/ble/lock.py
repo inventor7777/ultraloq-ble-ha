@@ -206,6 +206,7 @@ class UtecBleLock(UtecBleDevice):
                 UtecBleRequest(BLECommandCode.ADMIN_LOGIN, auth_required=True)
             )
             self.add_request(UtecBleRequest(BLECommandCode.SET_AUTOLOCK, data=payload))
+            self.add_request(UtecBleRequest(BLECommandCode.GET_AUTOLOCK))
 
         return await self.execute_requests(queue)
 
