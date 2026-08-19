@@ -24,6 +24,24 @@ assert "wait_for" in implementation
 assert "COMMAND_LOCK_TIMEOUT_SECONDS" in implementation
 assert "send_requests" in implementation
 
+request = next(
+    node
+    for node in module.body
+    if isinstance(node, ast.ClassDef) and node.name == "UtecBleRequest"
+)
+request_init = next(
+    node
+    for node in request.body
+    if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+)
+auth_commands = next(
+    node
+    for node in ast.walk(request_init)
+    if isinstance(node, ast.Set)
+    and any("ADMIN_LOGIN" in ast.unparse(item) for item in node.elts)
+)
+assert all("SET_AUTOLOCK" not in ast.unparse(item) for item in auth_commands.elts)
+
 lock_source = (
     Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/ble/lock.py"
 ).read_text()

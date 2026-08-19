@@ -505,7 +505,6 @@ class UtecBleRequest:
             BLECommandCode.UNLOCK,
             BLECommandCode.BOLT_LOCK,
             BLECommandCode.SET_LOCK_STATUS,
-            BLECommandCode.SET_AUTOLOCK,
             BLECommandCode.SET_WORK_MODE,
         }:
             auth_required = True
@@ -846,7 +845,7 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.SET_AUTOLOCK:
-                if self.success:
+                if len(self.data) >= 2:
                     self.device.autolock_time = bytes_to_int2(self.data[:2])
                     self.device.debug(
                         "(%s) autolock:%s",

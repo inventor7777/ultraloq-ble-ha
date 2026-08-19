@@ -88,3 +88,4 @@ failure_branch = next(
     if isinstance(node, ast.If) and ast.unparse(node.test) == "not self.success"
 )
 assert any(isinstance(node, ast.Return) for node in failure_branch.body)
+assert "len(self.data) >= 2" in ast.unparse(read_response)
