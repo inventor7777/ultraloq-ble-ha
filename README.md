@@ -13,7 +13,7 @@ I really wanted to have local control over my U-Bolt Pro locks, and the original
 - Active (GATT) Bluetooth support in Home Assistant, whether through [your host's built in Bluetooth](https://www.home-assistant.io/integrations/bluetooth/), a [local USB adapter](https://a.co/d/09RioHgV), or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/).
 - Internet connection on initial setup to get lock info from the Xthings API - this will be user controlled in the future.
 
-## Features
+## Features (1.0.0, in beta)
 
 Entities currently exposed per lock (when supported by your lock):
 
