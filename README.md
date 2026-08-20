@@ -20,6 +20,7 @@ Entities currently exposed per lock (when supported by your lock):
 - `lock.name_of_lock`
 - `sensor.battery_level`
 - `sensor.autolock_time`
+- `sensor.autolock_mode`
 - `binary_sensor.autolock` (this reads the raw enabled byte from the lock, and is separate from autolock time)
 - `binary_sensor.door`
 - `binary_sensor.sound`
@@ -79,6 +80,7 @@ Each lock may expose:
 
 - `sensor.battery_level`: reports High, Medium, Low, or Critical.
 - `sensor.autolock_time`: read-only auto-lock delay in whole seconds.
+- `sensor.autolock_mode`: reports Immediate or Door Sensor mode.
 - `binary_sensor.autolock`: reports the lock's auto-lock enabled state from its BLE response (`00` is off; a nonzero value is on).
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
@@ -93,7 +95,7 @@ Notes:
 
 ### Actions
 
-`ultraloq_ble.set_device_autolock` configures auto-lock locally over BLE. After a successful write, it reads the setting back from the lock and immediately updates `sensor.autolock_time` and `binary_sensor.autolock`.
+`ultraloq_ble.set_device_autolock` configures auto-lock locally over BLE. After a successful write, it reads the setting back from the lock and immediately updates `sensor.autolock_time`, `sensor.autolock_mode`, and `binary_sensor.autolock`.
 
 - `device_id`: lock to configure.
 - `duration`: delay before automatically locking.

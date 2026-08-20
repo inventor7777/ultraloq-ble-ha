@@ -20,6 +20,8 @@ from .entity import UltraloqEntity
 from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceBatteryLevel
 
+AUTOLOCK_MODES = {0: "Door Sensor", 1: "Immediate"}
+
 
 @dataclass(frozen=True, kw_only=True)
 class UltraloqSensorDescription(SensorEntityDescription):
@@ -56,6 +58,13 @@ SENSORS: tuple[UltraloqSensorDescription, ...] = (
         icon="mdi:timer-lock-outline",
         value_fn=lambda lock: lock.autolock_time if lock.autolock_time >= 0 else None,
     ),
+    UltraloqSensorDescription(
+        key="autolock_mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=list(AUTOLOCK_MODES.values()),
+        icon="mdi:timer-lock-outline",
+        value_fn=lambda lock: AUTOLOCK_MODES.get(lock.autolock_mode),
+    ),
 )
 
 
@@ -69,7 +78,10 @@ async def async_setup_entry(
 
     for lock in locks:
         for description in SENSORS:
-            if description.key == "autolock_time" and not lock.capabilities.autolock:
+            if (
+                description.key.startswith("autolock_")
+                and not lock.capabilities.autolock
+            ):
                 continue
             entities.append(UltraloqSensor(lock, description))
 
