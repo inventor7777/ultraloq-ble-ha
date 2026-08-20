@@ -11,7 +11,7 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import (
     HomeAssistant,
@@ -252,6 +252,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=SET_DEVICE_AUTOLOCK_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
+    hass.services.async_register(
+        DOMAIN, SERVICE_REFRESH_LOCKS, partial(_async_handle_refresh_locks, hass)
+    )
     return True
 
 
@@ -284,9 +287,13 @@ async def _async_refresh_entry_devices(
 async def _async_handle_refresh_locks(hass: HomeAssistant, call: ServiceCall) -> None:
     """Refresh cached lock metadata for all configured Ultraloq entries."""
 
-    for entry in hass.config_entries.async_entries(DOMAIN):
+    if not (entries := hass.config_entries.async_entries(DOMAIN)):
+        raise ServiceValidationError("No Ultraloq BLE configuration entries found.")
+    for entry in entries:
+        reload_required = entry.state is not ConfigEntryState.LOADED
         await _async_refresh_entry_devices(hass, entry)
-        await hass.config_entries.async_reload(entry.entry_id)
+        if reload_required:
+            await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -298,11 +305,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     devices = _build_ble_devices(api_devices)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {UTEC_LOCKDATA: devices}
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_LOCKS):
-        hass.services.async_register(
-            DOMAIN, SERVICE_REFRESH_LOCKS, partial(_async_handle_refresh_locks, hass)
-        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -321,8 +323,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         del hass.data[DOMAIN][entry.entry_id]
         if not hass.data[DOMAIN]:
             del hass.data[DOMAIN]
-            if hass.services.has_service(DOMAIN, SERVICE_REFRESH_LOCKS):
-                hass.services.async_remove(DOMAIN, SERVICE_REFRESH_LOCKS)
     return unload_ok
 
 

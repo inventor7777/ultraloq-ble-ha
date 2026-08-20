@@ -154,7 +154,7 @@ class UtecLock(UltraloqEntity, LockEntity):
         address = self.lock.wurx_uuid if self.lock.wurx_uuid else self.lock.mac_uuid
         self.async_on_remove(
             bluetooth.async_track_unavailable(
-                self.hass, self._unavailable_callback, address, connectable=False
+                self.hass, self._unavailable_callback, address, connectable=True
             )
         )
         self.async_on_remove(
@@ -165,9 +165,8 @@ class UtecLock(UltraloqEntity, LockEntity):
                 bluetooth.BluetoothScanningMode.ACTIVE,
             )
         )
-        self._attr_available = any(
+        self.lock._ha_available = any(
             bluetooth.async_address_present(self.hass, candidate, connectable=True)
-            or bluetooth.async_address_present(self.hass, candidate, connectable=False)
             for candidate in self._candidate_addresses()
         )
         self.schedule_update_lock_state(2 + self.poll_offset)
@@ -263,7 +262,6 @@ class UtecLock(UltraloqEntity, LockEntity):
             self.update_track_cancel()
             self.update_track_cancel = None
         LOGGER.debug("%s unavailable.", self.lock.name)
-        self._attr_available = False
         self.lock._ha_available = False
         self._notify_lock_state_listeners()
         self.async_write_ha_state()
@@ -275,11 +273,12 @@ class UtecLock(UltraloqEntity, LockEntity):
         info: bluetooth.BluetoothServiceInfoBleak,
         change: bluetooth.BluetoothChange,
     ) -> None:
-        self._attr_available = True
+        was_available = self.lock._ha_available
         self.lock._ha_available = True
         self._notify_lock_state_listeners()
         self.async_write_ha_state()
-        self.schedule_update_lock_state(2 + self.poll_offset)
+        if not was_available:
+            self.schedule_update_lock_state(2 + self.poll_offset)
 
     @callback
     def _handle_lock_state_update(self) -> None:

@@ -75,6 +75,9 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 assert self.entry is not None
+                reload_required = (
+                    self.entry.state is not config_entries.ConfigEntryState.LOADED
+                )
 
                 self.hass.config_entries.async_update_entry(
                     self.entry,
@@ -84,9 +87,9 @@ class UltraloqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_API_DEVICES: api_devices,
                     },
                 )
-                await self.hass.config_entries.async_reload(self.entry.entry_id)
+                if reload_required:
+                    await self.hass.config_entries.async_reload(self.entry.entry_id)
                 return self.async_abort(reason="reauth_successful")
-                # errors["base"] = "incorrect_email_pass"
 
         return self.async_show_form(
             step_id="reauth_confirm", data_schema=DATA_SCHEMA, errors=errors
