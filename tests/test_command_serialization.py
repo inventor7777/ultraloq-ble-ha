@@ -55,6 +55,6 @@ response_source = ast.unparse(
         if isinstance(node, ast.ClassDef) and node.name == "UtecBleResponse"
     )
 )
-assert "self.device.autolock_enabled = bool(data[3])" in response_source
-assert "self.device.autolock_mode = int(data[2])" in response_source
+assert "self.device.autolock_enabled = bool(data[2])" in response_source
+assert "self.device.autolock_mode = int(data[3])" in response_source
 assert "if len(data) >= 5" in response_source

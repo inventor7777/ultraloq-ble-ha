@@ -847,8 +847,8 @@ class UtecBleResponse:
                         f"GET_AUTOLOCK returned {len(data)} bytes; expected at least 4"
                     )
                 self.device.autolock_time = bytes_to_int2(data[:2])
-                self.device.autolock_mode = int(data[2])
-                self.device.autolock_enabled = bool(data[3])
+                self.device.autolock_enabled = bool(data[2])
+                self.device.autolock_mode = int(data[3])
                 self.device.debug(
                     "(%s) autolock:%s mode:%s enabled:%s",
                     self.device.mac_uuid,
