@@ -3,7 +3,7 @@
 from pathlib import Path
 
 root = Path(__file__).parents[1] / "custom_components/ultraloq_ble"
-assert "STATUS_SETTLE_SECONDS = 2" in (root / "utecio/ble/lock.py").read_text()
+assert "STATUS_SETTLE_SECONDS = 4" in (root / "utecio/ble/lock.py").read_text()
 
 lock_source = (root / "lock.py").read_text()
 assert "was_available = self.lock._ha_available" in lock_source

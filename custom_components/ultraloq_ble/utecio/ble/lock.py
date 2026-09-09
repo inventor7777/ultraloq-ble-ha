@@ -5,7 +5,7 @@ from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import date_from_4bytes, date_to_4bytes, to_byte_array
 from .device import UtecBleDevice, UtecBleRequest
 
-STATUS_SETTLE_SECONDS = 2
+STATUS_SETTLE_SECONDS = 4
 
 
 def build_autolock_payload(seconds: int, door_sensor: bool, enabled: bool) -> bytes:
