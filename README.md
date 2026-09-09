@@ -21,6 +21,7 @@ Entities currently exposed per lock (when supported by your lock):
 - `sensor.battery_level`
 - `sensor.autolock_time`
 - `sensor.autolock_mode`
+- `sensor.last_successful_communication`
 - `binary_sensor.autolock` (this reads the raw enabled byte from the lock, and is separate from autolock time)
 - `binary_sensor.door`
 - `binary_sensor.sound`
@@ -81,6 +82,7 @@ Each lock may expose:
 - `sensor.battery_level`: reports High, Medium, Low, or Critical.
 - `sensor.autolock_time`: read-only auto-lock delay in whole seconds.
 - `sensor.autolock_mode`: reports Immediate or Door Sensor mode.
+- `sensor.last_successful_communication`: timestamp of the last valid, successful BLE response from the lock.
 - `binary_sensor.autolock`: reports the lock's auto-lock enabled state from its BLE response (`00` is off; a nonzero value is on).
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.

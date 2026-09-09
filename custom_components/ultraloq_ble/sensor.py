@@ -65,6 +65,12 @@ SENSORS: tuple[UltraloqSensorDescription, ...] = (
         icon="mdi:timer-lock-outline",
         value_fn=lambda lock: AUTOLOCK_MODES.get(lock.autolock_mode),
     ),
+    UltraloqSensorDescription(
+        key="last_successful_communication",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda lock: lock.last_successful_communication,
+    ),
 )
 
 
@@ -107,3 +113,12 @@ class UltraloqSensor(UltraloqEntity, SensorEntity):
         """Return the sensor value."""
 
         return self.entity_description.value_fn(self.lock)
+
+    @property
+    def available(self) -> bool:
+        """Keep the last communication visible while the lock is offline."""
+
+        return (
+            self.entity_description.key == "last_successful_communication"
+            or super().available
+        )

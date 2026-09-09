@@ -121,6 +121,7 @@ class UtecBleDevice:
         self.sn: str = ""
         self.calendar: datetime.datetime | None = None
         self.device_time_offset: datetime.timedelta | None = None
+        self.last_successful_communication: datetime.datetime | None = None
 
     @property
     def is_busy(self) -> bool:
@@ -932,6 +933,9 @@ class UtecBleResponse:
                         f"({self.device.mac_uuid}) power level:{self.device.battery} | mute:{self.device.mute} | mode:{self.device.lock_mode}"
                     )
 
+            self.device.last_successful_communication = datetime.datetime.now(
+                datetime.UTC
+            )
             self.device.debug(
                 f"({self.device.mac_uuid}) Command Completed - {self.command.name}"
             )
