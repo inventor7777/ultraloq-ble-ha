@@ -117,6 +117,7 @@ class UtecBleDevice:
         self.autolock_enabled: bool | None = None
         self.battery: int = -1
         self.mute: bool = False
+        self.lock_status_has_mute: bool = False
         self.door_status: int = -1
         self.sn: str = ""
         self.calendar: datetime.datetime | None = None
@@ -843,13 +844,17 @@ class UtecBleResponse:
 
             elif self.command == BleResponseCode.GET_AUTOLOCK:
                 data = self.data
-                if len(data) < 4:
+                if len(data) < 2:
                     raise ValueError(
-                        f"GET_AUTOLOCK returned {len(data)} bytes; expected at least 4"
+                        f"GET_AUTOLOCK returned {len(data)} bytes; expected at least 2"
                     )
                 self.device.autolock_time = bytes_to_int2(data[:2])
-                self.device.autolock_enabled = bool(data[2])
-                self.device.autolock_mode = int(data[3])
+                # Some U-Bolt Pro firmware returns only the 2-byte time.
+                if len(data) >= 4:
+                    self.device.autolock_enabled = bool(data[2])
+                    self.device.autolock_mode = int(data[3])
+                else:
+                    self.device.autolock_enabled = self.device.autolock_time > 0
                 self.device.debug(
                     "(%s) autolock:%s mode:%s enabled:%s",
                     self.device.mac_uuid,
@@ -920,9 +925,13 @@ class UtecBleResponse:
                     self.device.lock_status,
                     self.device.door_status,
                 )
-                if len(data) >= 5:
+                # Some U-Bolt Pro firmware stops after battery and lock mode.
+                if len(data) >= 3:
                     self.device.battery = int(data[2])
+                if len(data) >= 4:
                     self.device.lock_mode = int(data[3])
+                self.device.lock_status_has_mute = len(data) >= 5
+                if len(data) >= 5:
                     self.device.mute = bool(data[4])
                     if self.device.capabilities.bt264 and len(data) >= 9:
                         self.device.calendar = date_from_4bytes(data[5:9])
