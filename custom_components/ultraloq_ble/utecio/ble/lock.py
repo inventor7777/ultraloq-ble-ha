@@ -221,8 +221,9 @@ class UtecBleLock(UtecBleDevice):
             if not self.capabilities.bt264:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_LOCK_STATUS))
                 self.add_request(UtecBleRequest(BLECommandCode.GET_BATTERY))
-                if self.capabilities.mutemode:
-                    self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
+            # Some U-Bolt Pro firmware omits mute from LOCK_STATUS.
+            if self.capabilities.mutemode and not self.lock_status_has_mute:
+                self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
             if self.capabilities.autolock:
                 self.add_request(UtecBleRequest(BLECommandCode.GET_AUTOLOCK))
 

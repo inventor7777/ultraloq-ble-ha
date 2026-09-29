@@ -45,7 +45,7 @@ assert all("SET_AUTOLOCK" not in ast.unparse(item) for item in auth_commands.elt
 lock_source = (
     Path(__file__).parents[1] / "custom_components/ultraloq_ble/utecio/ble/lock.py"
 ).read_text()
-assert "\n                if self.capabilities.mutemode:\n" in lock_source
+assert "if self.capabilities.mutemode and not self.lock_status_has_mute:" in lock_source
 assert "UtecBleRequest(BLECommandCode.GET_AUTOLOCK)" in lock_source
 
 response_source = ast.unparse(
