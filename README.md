@@ -22,7 +22,7 @@ Entities currently exposed per lock (when supported by your lock):
 - `sensor.autolock_time`
 - `sensor.autolock_mode`
 - `sensor.last_successful_communication`
-- `binary_sensor.autolock` (this reads the raw enabled byte from the lock, and is separate from autolock time)
+- `binary_sensor.autolock` (reads the enabled byte when supplied; firmware that returns only auto-lock time is considered enabled when that time is nonzero)
 - `binary_sensor.door`
 - `binary_sensor.sound`
 - `select.lock_mode`

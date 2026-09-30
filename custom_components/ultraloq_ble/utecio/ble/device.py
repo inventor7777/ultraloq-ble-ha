@@ -18,7 +18,13 @@ from ecdsa.ellipticcurve import Point
 from .. import DeviceDefinition, GenericLock, canonical_model, known_devices, logger
 from ..const import BATTERY_LEVEL, DOOR_STATUS, LOCK_MODE, CRC8Table
 from ..enums import BLECommandCode, BleResponseCode, DeviceKeyUUID, DeviceServiceUUID
-from ..util import bytes_to_ascii, bytes_to_int2, date_from_4bytes, decode_password
+from ..util import (
+    bytes_to_ascii,
+    bytes_to_int2,
+    date_from_4bytes,
+    decode_password,
+    parse_autolock_response,
+)
 
 RESPONSE_TIMEOUT_SECONDS = 15
 COMMAND_LOCK_TIMEOUT_SECONDS = 90
@@ -843,18 +849,11 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.GET_AUTOLOCK:
-                data = self.data
-                if len(data) < 2:
-                    raise ValueError(
-                        f"GET_AUTOLOCK returned {len(data)} bytes; expected at least 2"
-                    )
-                self.device.autolock_time = bytes_to_int2(data[:2])
-                # Some U-Bolt Pro firmware returns only the 2-byte time.
-                if len(data) >= 4:
-                    self.device.autolock_enabled = bool(data[2])
-                    self.device.autolock_mode = int(data[3])
-                else:
-                    self.device.autolock_enabled = self.device.autolock_time > 0
+                (
+                    self.device.autolock_time,
+                    self.device.autolock_enabled,
+                    self.device.autolock_mode,
+                ) = parse_autolock_response(self.data)
                 self.device.debug(
                     "(%s) autolock:%s mode:%s enabled:%s",
                     self.device.mac_uuid,
