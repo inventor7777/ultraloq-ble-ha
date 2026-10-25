@@ -259,9 +259,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 def _build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
-    """Build BLE lock objects from cached API metadata."""
+    """Build BLE lock objects from cached API metadata.
 
-    return build_ble_devices(api_devices)
+    The cloud account can include non-lock devices (e.g. U-tec smart plugs)
+    that have no "user" credentials; skip them instead of crashing.
+    """
+
+    records = api_devices.values() if isinstance(api_devices, dict) else api_devices
+    locks: list[dict[str, Any]] = []
+    for record in records:
+        user = record.get("user") if isinstance(record, dict) else None
+        if isinstance(user, dict) and "password" in user:
+            locks.append(record)
+        else:
+            LOGGER.debug(
+                "Skipping non-lock device %s",
+                record.get("name") if isinstance(record, dict) else record,
+            )
+    return build_ble_devices(locks)
 
 
 def debug_mode() -> bool:
