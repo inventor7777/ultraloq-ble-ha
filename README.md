@@ -19,6 +19,7 @@ Entities currently exposed per lock (when supported by your lock):
 
 - `lock.name_of_lock`
 - `sensor.battery_level`
+- `sensor.cloud_battery_level` (optional, requires enabling cloud polling)
 - `sensor.autolock_time`
 - `sensor.autolock_mode`
 - `sensor.last_successful_communication`
@@ -63,6 +64,7 @@ This integration is designed so the cloud is used only when needed:
 - first setup
 - credential reauthentication
 - manual lock metadata refresh
+- optional Cloud Battery Level polling, only when explicitly enabled
 
 Normal operation such as:
 - lock
@@ -80,6 +82,7 @@ I am working on a local only version, but I am still exploring whether it's viab
 Each lock may expose:
 
 - `sensor.battery_level`: reports High, Medium, Low, or Critical.
+- `sensor.cloud_battery_level`: optional cloud-reported battery percentage, named Cloud Battery Level.
 - `sensor.autolock_time`: read-only auto-lock delay in whole seconds.
 - `sensor.autolock_mode`: reports Immediate or Door Sensor mode.
 - `sensor.last_successful_communication`: timestamp of the last valid, successful BLE response from the lock.
@@ -92,8 +95,16 @@ Each lock may expose:
 
 Notes:
 
-- Availability is shared across a lock's entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted.
+- Availability is shared across a lock's BLE entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted. Cloud Battery Level is independent of BLE availability.
 - Capability-dependent entities are only created when the model mapping reports support.
+
+### Cloud Battery Level (optional)
+
+In the integration's **Configure** options, enable **Cloud Battery Level** and choose a cloud poll interval of 6, 12, or 24 hours (default: 12). It is off by default. Enabling it adds a percentage sensor alongside each lock's existing Bluetooth battery-level sensor, with the `mdi:battery-plus-variant` icon.
+
+Each refresh performs a U-tec cloud login and fetches the account's device metadata once for all locks. It does not reload the integration or change BLE polling. Cloud failures leave BLE control unaffected and retain the last successful reading. The sensor's `last_successful_cloud_fetch` and `cloud_update_success` attributes show whether that reading may be stale. With no successful reading, the state is unknown; missing values and invalid percentages (including `-99`) are also unknown. Zero percent is accepted.
+
+The percentage is whatever the cloud reports; a successful fetch does not guarantee a recent measurement from the lock or bridge. The sensor remains available independently of Bluetooth. Cloud polling is unavailable for local-only installations.
 
 ### Actions
 

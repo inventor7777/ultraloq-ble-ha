@@ -33,7 +33,9 @@
       "init": {
         "data": {
           "scan_interval": "Poll Interval (seconds):",
-          "stagger_delay": "Stagger Delay Between Locks (seconds):"
+          "stagger_delay": "Stagger Delay Between Locks (seconds):",
+          "cloud_battery": "Enable Cloud Battery Level (contacts the U-tec cloud)",
+          "cloud_battery_interval": "Cloud battery poll interval (hours)"
         }
       }
     }

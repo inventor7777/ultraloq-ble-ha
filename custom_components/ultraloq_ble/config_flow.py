@@ -15,7 +15,11 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_API_DEVICES,
+    CONF_CLOUD_ACCESS,
+    CONF_CLOUD_BATTERY,
+    CONF_CLOUD_BATTERY_INTERVAL,
     CONF_STAGGER_DELAY,
+    DEFAULT_CLOUD_BATTERY_INTERVAL,
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_STAGGER_DELAY,
@@ -166,5 +170,23 @@ class UltraloqOptionsFlowHandler(config_entries.OptionsFlow):
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=0)),
         }
+
+        if self._config_entry.data.get(CONF_CLOUD_ACCESS, True):
+            options.update(
+                {
+                    vol.Optional(
+                        CONF_CLOUD_BATTERY,
+                        default=self._config_entry.options.get(
+                            CONF_CLOUD_BATTERY, False
+                        ),
+                    ): cv.boolean,
+                    vol.Optional(
+                        CONF_CLOUD_BATTERY_INTERVAL,
+                        default=self._config_entry.options.get(
+                            CONF_CLOUD_BATTERY_INTERVAL, DEFAULT_CLOUD_BATTERY_INTERVAL
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.In([6, 12, 24])),
+                }
+            )
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))

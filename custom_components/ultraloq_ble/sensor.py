@@ -11,11 +11,12 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, UTEC_LOCKDATA
+from .const import CONF_CLOUD_ACCESS, CONF_CLOUD_BATTERY, DOMAIN, UTEC_LOCKDATA
+from .coordinator import CloudBatteryCoordinator
 from .entity import UltraloqEntity
 from .utecio.ble.lock import UtecBleLock
 from .utecio.enums import DeviceBatteryLevel
@@ -80,7 +81,16 @@ async def async_setup_entry(
     """Set up Ultraloq sensors for a config entry."""
 
     locks: list[UtecBleLock] = hass.data[DOMAIN][entry.entry_id][UTEC_LOCKDATA]
-    entities: list[UltraloqSensor] = []
+    entities: list[SensorEntity] = []
+    cloud = None
+    if (
+        locks
+        and entry.data.get(CONF_CLOUD_ACCESS, True)
+        and entry.options.get(CONF_CLOUD_BATTERY, False)
+    ):
+        cloud = CloudBatteryCoordinator(hass, entry)
+        # An optional cloud outage must not fail platform setup.
+        await cloud.async_refresh()
 
     for lock in locks:
         for description in SENSORS:
@@ -90,6 +100,8 @@ async def async_setup_entry(
             ):
                 continue
             entities.append(UltraloqSensor(lock, description))
+            if description.key == "battery_level" and cloud is not None:
+                entities.append(UltraloqCloudBatterySensor(lock, cloud))
 
     async_add_entities(entities)
 
@@ -122,3 +134,42 @@ class UltraloqSensor(UltraloqEntity, SensorEntity):
             self.entity_description.key == "last_successful_communication"
             or super().available
         )
+
+
+class UltraloqCloudBatterySensor(UltraloqEntity, SensorEntity):
+    """Cloud-reported percentage, available independently of the BLE connection."""
+
+    _attr_name = "Cloud Battery Level"
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:battery-plus-variant"
+    _listen_for_updates = False
+
+    def __init__(self, lock: UtecBleLock, coordinator: CloudBatteryCoordinator) -> None:
+        super().__init__(lock, "cloud_battery_level")
+        self.coordinator = coordinator
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_lock_state_update)
+        )
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data.get(self.lock.mac_uuid.upper())
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        last_fetch = self.coordinator.last_successful_fetch
+        return {
+            "last_successful_cloud_fetch": last_fetch.isoformat()
+            if last_fetch
+            else None,
+            "cloud_update_success": self.coordinator.last_update_success,
+        }

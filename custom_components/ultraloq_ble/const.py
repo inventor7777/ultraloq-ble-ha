@@ -23,6 +23,11 @@ PLATFORMS = [
 DEFAULT_NAME = "Ultraloq BLE"
 TIMEOUT = 20
 CONF_API_DEVICES = "api_devices"
+# Future local-only entries set this false; existing cloud entries default to true.
+CONF_CLOUD_ACCESS = "cloud_access"
+CONF_CLOUD_BATTERY = "cloud_battery"
+CONF_CLOUD_BATTERY_INTERVAL = "cloud_battery_interval"
+DEFAULT_CLOUD_BATTERY_INTERVAL = 12
 CONF_STAGGER_DELAY = "stagger_delay"
 SERVICE_REFRESH_LOCKS = "refresh_locks"
 SERVICE_GET_DEVICE_INFORMATION = "get_device_information"
