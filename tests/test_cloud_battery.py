@@ -136,6 +136,12 @@ async def check_cloud_battery():
     await cloud.async_refresh()
     assert fetch.await_count == 1
     assert cloud.data == {"AA:01": 75, "AA:02": 0, "AA:03": None, "AA:04": None}
+    assert cloud.battery_status == {
+        "AA:01": "percentage_valid",
+        "AA:02": "percentage_valid",
+        "AA:03": "percentage_invalid",
+        "AA:04": "percentage_missing",
+    }
     timestamp = cloud.last_successful_fetch
     assert timestamp.tzinfo is UTC
 
@@ -145,6 +151,7 @@ async def check_cloud_battery():
     assert sensor._attr_icon == "mdi:battery-plus-variant"
     assert sensor._attr_unique_id == "ul_aa:01_cloud_battery_level"
     assert sensor.available and sensor.native_value == 75
+    assert sensor.extra_state_attributes["cloud_battery_status"] == "percentage_valid"
     await sensor.async_added_to_hass()
     assert not lock._ha_state_callbacks
     assert len(cloud.listeners) == 1
@@ -157,6 +164,9 @@ async def check_cloud_battery():
         assert sensor.available and sensor.native_value == 75
         assert cloud.last_successful_fetch == timestamp
         assert sensor.extra_state_attributes["cloud_update_success"] is False
+        assert (
+            sensor.extra_state_attributes["cloud_battery_status"] == "percentage_valid"
+        )
         assert lock.lock_status == -1 and lock._ha_available is False
     fetch.side_effect = None
     fetch.return_value = {"unexpected": "response"}
@@ -165,6 +175,15 @@ async def check_cloud_battery():
     fetch.return_value = [{"uuid": "aa:01", "params": {"battery_percent": -99}}]
     await cloud.async_refresh()
     assert cloud.last_update_success and sensor.native_value is None
+    assert sensor.extra_state_attributes["cloud_battery_status"] == "percentage_invalid"
+    fetch.return_value = [{"uuid": "aa:01", "params": {}}]
+    await cloud.async_refresh()
+    assert sensor.extra_state_attributes["cloud_battery_status"] == "percentage_missing"
+    fetch.return_value = []
+    await cloud.async_refresh()
+    assert (
+        sensor.extra_state_attributes["cloud_battery_status"] == "device_not_returned"
+    )
     sensor.cleanup[0]()
     assert not cloud.listeners
 

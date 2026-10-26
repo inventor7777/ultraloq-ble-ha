@@ -106,6 +106,8 @@ Each refresh performs a U-tec cloud login and fetches the account's device metad
 
 The percentage is whatever the cloud reports; a successful fetch does not guarantee a recent measurement from the lock or bridge. The sensor remains available independently of Bluetooth. Cloud polling is unavailable for local-only installations.
 
+If the sensor is unknown despite a successful fetch, its `cloud_battery_status` attribute distinguishes `percentage_missing`, `percentage_invalid`, and `device_not_returned` (no matching cloud device). A usable reading reports `percentage_valid`. After a failed fetch, this status describes the last successful response.
+
 ### Actions
 
 `ultraloq_ble.set_device_autolock` configures auto-lock locally over BLE. After a successful write, it reads the setting back from the lock and immediately updates `sensor.autolock_time`, `sensor.autolock_mode`, and `binary_sensor.autolock`.

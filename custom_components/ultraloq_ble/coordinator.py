@@ -41,6 +41,7 @@ class CloudBatteryCoordinator(DataUpdateCoordinator[dict[str, float | None]]):
         )
         self.entry = entry
         self.data = {}
+        self.battery_status: dict[str, str] = {}
         self.last_successful_fetch: datetime | None = None
 
     async def _async_update_data(self) -> dict[str, float | None]:
@@ -57,12 +58,20 @@ class CloudBatteryCoordinator(DataUpdateCoordinator[dict[str, float | None]]):
         if not isinstance(records, list):
             raise UpdateFailed("Expected a cloud device list")
         readings = {}
+        statuses = {}
         for record in records:
             if not isinstance(record, dict) or not isinstance(record.get("uuid"), str):
                 continue
             params = record.get("params")
-            readings[record["uuid"].upper()] = _battery_percent(
-                params.get("battery_percent") if isinstance(params, dict) else None
-            )
+            raw = params.get("battery_percent") if isinstance(params, dict) else None
+            address = record["uuid"].upper()
+            readings[address] = _battery_percent(raw)
+            if raw is None:
+                statuses[address] = "percentage_missing"
+            elif readings[address] is None:
+                statuses[address] = "percentage_invalid"
+            else:
+                statuses[address] = "percentage_valid"
+        self.battery_status = statuses
         self.last_successful_fetch = datetime.now(UTC)
         return readings

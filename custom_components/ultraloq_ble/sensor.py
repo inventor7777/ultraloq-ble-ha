@@ -172,4 +172,7 @@ class UltraloqCloudBatterySensor(UltraloqEntity, SensorEntity):
             if last_fetch
             else None,
             "cloud_update_success": self.coordinator.last_update_success,
+            "cloud_battery_status": self.coordinator.battery_status.get(
+                self.lock.mac_uuid.upper(), "device_not_returned"
+            ),
         }
