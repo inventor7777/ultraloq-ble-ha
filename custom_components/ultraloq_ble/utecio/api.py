@@ -49,6 +49,15 @@ def build_ble_devices(api_devices: list[dict[str, Any]]) -> list[UtecBleLock]:
 
     devices = []
     for api_device in api_devices:
+        # The account can include non-lock devices (e.g. U-tec smart plugs)
+        # that have no "user" credentials; skip them instead of crashing.
+        user = api_device.get("user") if isinstance(api_device, dict) else None
+        if not isinstance(user, dict) or "password" not in user:
+            logger.debug(
+                "Skipping non-lock device %s",
+                api_device.get("name") if isinstance(api_device, dict) else api_device,
+            )
+            continue
         device = UtecBleLock.from_json(api_device)
         if device.capabilities.bluetooth:
             devices.append(device)
