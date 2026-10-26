@@ -89,8 +89,6 @@ async def async_setup_entry(
         and entry.options.get(CONF_CLOUD_BATTERY, False)
     ):
         cloud = CloudBatteryCoordinator(hass, entry)
-        # An optional cloud outage must not fail platform setup.
-        await cloud.async_refresh()
 
     for lock in locks:
         for description in SENSORS:
@@ -104,6 +102,10 @@ async def async_setup_entry(
                 entities.append(UltraloqCloudBatterySensor(lock, cloud))
 
     async_add_entities(entities)
+    if cloud is not None:
+        entry.async_create_background_task(
+            hass, cloud.async_refresh(), "Ultraloq initial cloud battery refresh"
+        )
 
 
 class UltraloqSensor(UltraloqEntity, SensorEntity):
@@ -155,6 +157,12 @@ class UltraloqCloudBatterySensor(UltraloqEntity, SensorEntity):
         self.async_on_remove(
             self.coordinator.async_add_listener(self._handle_lock_state_update)
         )
+
+    async def async_update(self) -> None:
+        """Refresh the account through HA's debounced manual-update path."""
+
+        if self.enabled:
+            await self.coordinator.async_request_refresh()
 
     @property
     def available(self) -> bool:

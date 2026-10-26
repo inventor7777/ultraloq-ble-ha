@@ -192,6 +192,14 @@ async def check_cloud_battery():
     namespace["UltraloqSensor"] = lambda lock, description: SimpleNamespace(lock=lock)
     hass = SimpleNamespace(data={"ultraloq_ble": {"test": {"utec_data": [lock, lock]}}})
     entry.entry_id = "test"
+    background_tasks = []
+
+    def create_background_task(hass, coroutine, name):
+        task = asyncio.create_task(coroutine, name=name)
+        background_tasks.append(task)
+        return task
+
+    entry.async_create_background_task = create_background_task
     setup = namespace["async_setup_entry"]
     for data, options in (
         (entry.data, {}),
@@ -210,6 +218,8 @@ async def check_cloud_battery():
     entities = []
     await setup(hass, entry, entities.extend)
     assert len(entities) == 4  # BLE and cloud battery for both locks, despite outage.
+    fetch.assert_not_awaited()
+    await asyncio.gather(*background_tasks)
     fetch.assert_awaited_once()
     assert entities[1].coordinator is entities[3].coordinator
     assert entities[1].coordinator.update_interval == timedelta(hours=24)

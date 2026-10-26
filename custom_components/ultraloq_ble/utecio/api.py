@@ -140,6 +140,19 @@ class UtecClient:
 
         return response
 
+    @classmethod
+    def _response_list(
+        cls, response: dict[str, Any], message: str
+    ) -> list[dict[str, Any]]:
+        """Reject failed or malformed listings instead of returning partial metadata."""
+
+        records = cls._ensure_success(response, message).get("data")
+        if not isinstance(records, list) or any(
+            not isinstance(record, dict) for record in records
+        ):
+            raise InvalidResponse(message)
+        return records
+
     async def _fetch_token(self) -> None:
         """Fetch the token that is used to log into the app."""
 
@@ -189,7 +202,7 @@ class UtecClient:
         data = {"data": json.dumps(body_data), "token": self.token}
 
         response = await self._post(url, HEADERS, data)
-        for address in response["data"]:
+        for address in self._response_list(response, "Could not fetch Utec addresses."):
             self.addresses.append(address)
 
     async def _get_rooms_at_address(self, address) -> None:
@@ -200,7 +213,7 @@ class UtecClient:
         data = {"data": json.dumps(body_data), "token": self.token}
 
         response = await self._post(url, HEADERS, data)
-        for room in response["data"]:
+        for room in self._response_list(response, "Could not fetch Utec rooms."):
             self.rooms.append(room)
 
     async def _get_devices_in_room(self, room) -> None:
@@ -211,7 +224,9 @@ class UtecClient:
         data = {"data": json.dumps(body_data), "token": self.token}
 
         response = await self._post(url, HEADERS, data)
-        for api_device in response["data"]:
+        for api_device in self._response_list(
+            response, "Could not fetch Utec devices."
+        ):
             self.devices.append(api_device)
 
     async def _post(

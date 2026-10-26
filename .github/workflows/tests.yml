@@ -19,3 +19,18 @@ jobs:
           python-version: "3.11"
       - name: Run regression tests
         run: for test in tests/test_*.py; do python "$test"; done
+
+  home-assistant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/ha/requirements.txt
+      - name: Install Home Assistant test dependencies
+        run: python -m pip install -r tests/ha/requirements.txt
+      - name: Run Home Assistant lifecycle tests
+        run: python -m pytest -q tests/ha --timeout=30

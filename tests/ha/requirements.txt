@@ -1,0 +1,5 @@
+pytest-homeassistant-custom-component==0.13.375
+bleak
+bleak-retry-connector
+ecdsa
+pycryptodome
