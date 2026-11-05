@@ -10,6 +10,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import CONF_CLOUD_BATTERY_INTERVAL, DEFAULT_CLOUD_BATTERY_INTERVAL, LOGGER
 from .util import InvalidCredentials, async_fetch_api_devices
+from .utecio.enums import DeviceBatteryLevel
+
+# Categorical cloud levels that contradict a reported 0%.
+_LEVELS_CONTRADICTING_ZERO = {DeviceBatteryLevel.MEDIUM.value, DeviceBatteryLevel.HIGH.value}
 
 
 def _battery_percent(value: object) -> float | None:
@@ -22,6 +26,21 @@ def _battery_percent(value: object) -> float | None:
     except (OverflowError, ValueError):
         return None
     return percent if 0 <= percent <= 100 else None
+
+
+def _zero_contradicted(level: object) -> bool:
+    """True when the same cloud record's categorical level is Medium or High.
+
+    Some locks report battery_percent 0 while their level says High. A zero is
+    kept when the level is missing, unparseable, or agrees (Low/Critical).
+    """
+
+    if isinstance(level, bool):
+        return False
+    try:
+        return int(level) in _LEVELS_CONTRADICTING_ZERO
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 class CloudBatteryCoordinator(DataUpdateCoordinator[dict[str, float | None]]):
@@ -64,12 +83,16 @@ class CloudBatteryCoordinator(DataUpdateCoordinator[dict[str, float | None]]):
                 continue
             params = record.get("params")
             raw = params.get("battery_percent") if isinstance(params, dict) else None
+            level = params.get("battery") if isinstance(params, dict) else None
             address = record["uuid"].upper()
             readings[address] = _battery_percent(raw)
             if raw is None:
                 statuses[address] = "percentage_missing"
             elif readings[address] is None:
                 statuses[address] = "percentage_invalid"
+            elif readings[address] == 0 and _zero_contradicted(level):
+                readings[address] = None
+                statuses[address] = "percentage_zero_contradicted"
             else:
                 statuses[address] = "percentage_valid"
         self.battery_status = statuses

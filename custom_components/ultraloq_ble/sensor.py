@@ -168,36 +168,19 @@ class UltraloqCloudBatterySensor(UltraloqEntity, SensorEntity):
     def available(self) -> bool:
         return True
 
-    def _zero_unconfirmed(self, value: float | None) -> bool:
-        """True when the cloud says 0% but BLE does not report Low or Critical.
-
-        Some locks send battery_percent 0 to the cloud as a placeholder while
-        their BLE level byte says High. Only trust 0 when BLE agrees the battery
-        is Low or Critical; otherwise (including before the first BLE read)
-        treat it as no reading rather than an empty battery.
-        """
-
-        return value == 0 and self.lock.battery not in (
-            DeviceBatteryLevel.LOW.value,
-            DeviceBatteryLevel.CRITICAL.value,
-        )
-
     @property
     def native_value(self) -> float | None:
-        value = self.coordinator.data.get(self.lock.mac_uuid.upper())
-        return None if self._zero_unconfirmed(value) else value
+        return self.coordinator.data.get(self.lock.mac_uuid.upper())
 
     @property
     def extra_state_attributes(self) -> dict:
         last_fetch = self.coordinator.last_successful_fetch
-        address = self.lock.mac_uuid.upper()
-        status = self.coordinator.battery_status.get(address, "device_not_returned")
-        if self._zero_unconfirmed(self.coordinator.data.get(address)):
-            status = "percentage_zero_unconfirmed"
         return {
             "last_successful_cloud_fetch": last_fetch.isoformat()
             if last_fetch
             else None,
             "cloud_update_success": self.coordinator.last_update_success,
-            "cloud_battery_status": status,
+            "cloud_battery_status": self.coordinator.battery_status.get(
+                self.lock.mac_uuid.upper(), "device_not_returned"
+            ),
         }
