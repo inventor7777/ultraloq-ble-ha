@@ -109,13 +109,13 @@ The auto-lock enabled binary sensor has been removed for all models because the 
 
 In the integration's **Configure** options, enable **Cloud Battery Level** and choose a cloud poll interval of 6, 12, or 24 hours (default: 12). It is off by default. Enabling it adds a percentage sensor alongside each lock's existing Bluetooth battery-level sensor, with the `mdi:battery-plus-variant` icon.
 
-Each refresh performs a U-tec cloud login and fetches the account's device metadata once for all locks. It does not reload the integration or change BLE polling. Cloud failures leave BLE control unaffected and retain the last successful reading. The sensor's `last_successful_cloud_fetch` and `cloud_update_success` attributes show whether that reading may be stale. With no successful reading, the state is unknown; missing values and invalid percentages (including `-99`) are also unknown. Zero percent is accepted.
+Each refresh performs a U-tec cloud login and fetches the account's device metadata once for all locks. It does not reload the integration or change BLE polling. Cloud failures leave BLE control unaffected and retain the last successful reading. The sensor's `last_successful_cloud_fetch` and `cloud_update_success` attributes show whether that reading may be stale. With no successful reading, the state is unknown; missing values and invalid percentages (including `-99`) are also unknown. Zero percent is accepted unless the same cloud response's categorical `battery` level is Medium or High; some locks report `0` alongside a High level, so that contradictory zero is reported as unknown.
 
 The first cloud fetch runs in the background so local sensors can load immediately. To request another fetch without reloading, call `homeassistant.update_entity` for a Cloud Battery Level sensor. Requests share the account's coordinator, which prevents simultaneous fetches and batches overlapping refresh requests.
 
 The percentage is whatever the cloud reports; a successful fetch does not guarantee a recent measurement from the lock or bridge. The sensor remains available independently of Bluetooth. Cloud polling is unavailable for local-only installations.
 
-If the sensor is unknown despite a successful fetch, its `cloud_battery_status` attribute distinguishes `percentage_missing`, `percentage_invalid`, and `device_not_returned` (no matching cloud device). A usable reading reports `percentage_valid`. After a failed fetch, this status describes the last successful response.
+If the sensor is unknown despite a successful fetch, its `cloud_battery_status` attribute distinguishes `percentage_missing`, `percentage_invalid`, `percentage_zero_contradicted` (0% reported alongside a Medium or High cloud level), and `device_not_returned` (no matching cloud device). A usable reading reports `percentage_valid`. After a failed fetch, this status describes the last successful response.
 
 ### Actions
 
