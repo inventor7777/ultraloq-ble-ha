@@ -124,7 +124,6 @@ class UtecBleDevice:
         self.lock_mode: int = -1
         self.autolock_time: int = -1
         self.autolock_mode: int = -1
-        self.autolock_enabled: bool | None = None
         self.battery: int = -1
         self.mute: bool = False
         self.lock_status_has_mute: bool = False
@@ -865,19 +864,16 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.GET_AUTOLOCK:
-                (
-                    self.device.autolock_time,
-                    self.device.autolock_enabled,
-                    self.device.autolock_mode,
-                ) = parse_autolock_response(
-                    self.data, bt264=self.device.capabilities.bt264
+                (self.device.autolock_time, self.device.autolock_mode) = (
+                    parse_autolock_response(
+                        self.data, bt264=self.device.capabilities.bt264
+                    )
                 )
                 self.device.debug(
-                    "(%s) autolock:%s mode:%s enabled:%s",
+                    "(%s) autolock:%s mode:%s",
                     self.device.mac_uuid,
                     self.device.autolock_time,
                     self.device.autolock_mode,
-                    self.device.autolock_enabled,
                 )
 
             elif self.command == BleResponseCode.SET_AUTOLOCK:

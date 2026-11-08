@@ -25,7 +25,6 @@ Entities currently exposed per lock (when supported by your lock):
 - `sensor.last_successful_communication`
 - `sensor.model`
 - `sensor.firmware_version`
-- `binary_sensor.autolock` (unavailable on `bt264` models, whose separate enabled flag has not been identified)
 - `binary_sensor.door`
 - `binary_sensor.sound`
 - `select.lock_mode`
@@ -91,7 +90,6 @@ Each lock may expose:
 - `sensor.last_successful_communication`: timestamp of the last valid, successful BLE response from the lock.
 - `sensor.model`: diagnostic model identification from BLE when supported, otherwise the configured model. The original Pro firmware reports the family name `U-Bolt`; this does not change the integration's model capability mapping.
 - `sensor.firmware_version`: diagnostic firmware version, initially from cached cloud metadata when present. Models with model-read support attempt a BLE identification read once after the first successful status poll per integration load; **Get device information** can retry it. Unsupported or malformed responses retain the existing version.
-- `binary_sensor.autolock`: reports the enabled state on non-`bt264` models using the existing response layout. On `bt264` models it remains unavailable: the response layout recovered from U-Bolt firmware contains duration and mode, but its trailing byte's meaning is unknown.
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
 - `select.lock_mode`: contains only the modes supported by that model.
@@ -104,6 +102,8 @@ Notes:
 - Availability is shared across a lock's BLE entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted. Model, Firmware Version, Last Successful Communication, and Cloud Battery Level remain visible independently of BLE availability.
 - Capability-dependent entities are only created when the model mapping reports support.
 - The work-mode framing and auto-lock field corrections apply to all models marked `bt264` in the capability table, including the generic fallback for unknown models. Non-`bt264` models retain their existing layouts. The corrections were derived from official U-Bolt `02.28.0020` firmware; their application to the rest of the `bt264` family still needs hardware validation.
+
+The auto-lock enabled binary sensor has been removed for all models because the response field was incorrectly interpreted as an enabled flag. Existing entity registry entries are removed on integration reload; automations referencing that sensor need updating.
 
 ### Cloud Battery Level (optional)
 
@@ -119,7 +119,7 @@ If the sensor is unknown despite a successful fetch, its `cloud_battery_status` 
 
 ### Actions
 
-`ultraloq_ble.set_device_autolock` configures auto-lock locally over BLE. After a successful write, it reads the setting back from the lock and immediately updates `sensor.autolock_time`, `sensor.autolock_mode`, and `binary_sensor.autolock`.
+`ultraloq_ble.set_device_autolock` configures auto-lock locally over BLE. After a successful write, it reads the setting back from the lock and immediately updates `sensor.autolock_time` and `sensor.autolock_mode`.
 
 - `device_id`: lock to configure.
 - `duration`: delay before automatically locking.

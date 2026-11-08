@@ -15,14 +15,14 @@ response_source = ast.unparse(
     )
 )
 
-# GET_AUTOLOCK may contain only time, or append enabled and mode independently.
+# GET_AUTOLOCK may contain only time; preserve the legacy non-bt264 mode offset.
 parse_autolock_response = runpy.run_path(
     root / "custom_components/ultraloq_ble/utecio/util.py"
 )["parse_autolock_response"]
-assert parse_autolock_response(bytes.fromhex("0000")) == (0, False, -1)
-assert parse_autolock_response(bytes.fromhex("1e00")) == (30, True, -1)
-assert parse_autolock_response(bytes.fromhex("1e0000")) == (30, False, -1)
-assert parse_autolock_response(bytes.fromhex("1e000001")) == (30, False, 1)
+assert parse_autolock_response(bytes.fromhex("0000")) == (0, -1)
+assert parse_autolock_response(bytes.fromhex("1e00")) == (30, -1)
+assert parse_autolock_response(bytes.fromhex("1e0000")) == (30, -1)
+assert parse_autolock_response(bytes.fromhex("1e000001")) == (30, 1)
 try:
     parse_autolock_response(bytes.fromhex("00"))
 except ValueError:

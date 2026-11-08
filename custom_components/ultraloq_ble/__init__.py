@@ -115,8 +115,6 @@ async def _async_handle_get_device_information(
         state["battery_level"] = _enum_name(DeviceBatteryLevel, lock.battery)
     if lock.capabilities.autolock and lock.autolock_time >= 0:
         state["autolock_seconds"] = lock.autolock_time
-    if lock.autolock_enabled is not None:
-        state["autolock_enabled"] = lock.autolock_enabled
     if lock.capabilities.mutemode:
         state["muted"] = lock.mute
     if lock.lock_mode != DeviceLockWorkMode.NOTSET.value:

@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, UTEC_LOCKDATA
@@ -20,15 +21,22 @@ async def async_setup_entry(
 ) -> None:
     """Set up supported binary sensors."""
 
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            entity.domain == "binary_sensor"
+            and entity.platform == DOMAIN
+            and entity.unique_id.startswith("ul_")
+            and entity.unique_id.endswith("_autolock")
+        ):
+            registry.async_remove(entity.entity_id)
+
     locks: list[UtecBleLock] = hass.data[DOMAIN][entry.entry_id][UTEC_LOCKDATA]
     entities: list[BinarySensorEntity] = [
         UltraloqSoundSensor(lock) for lock in locks if lock.capabilities.mutemode
     ]
     entities.extend(
         UltraloqDoorSensor(lock) for lock in locks if lock.capabilities.doorsensor
-    )
-    entities.extend(
-        UltraloqAutolockSensor(lock) for lock in locks if lock.capabilities.autolock
     )
     async_add_entities(entities)
 
@@ -48,30 +56,6 @@ class UltraloqSoundSensor(UltraloqEntity, BinarySensorEntity):
         """Return true when the lock is not muted."""
 
         return not self.lock.mute
-
-
-class UltraloqAutolockSensor(UltraloqEntity, BinarySensorEntity):
-    """Whether auto-lock is enabled."""
-
-    _attr_name = "Autolock"
-    _attr_icon = "mdi:timer-lock-outline"
-
-    def __init__(self, lock: UtecBleLock) -> None:
-        """Initialize the sensor."""
-
-        super().__init__(lock, "autolock")
-
-    @property
-    def available(self) -> bool:
-        """Return availability after auto-lock has been read."""
-
-        return super().available and self.lock.autolock_enabled is not None
-
-    @property
-    def is_on(self) -> bool:
-        """Return whether auto-lock is enabled."""
-
-        return bool(self.lock.autolock_enabled)
 
 
 class UltraloqDoorSensor(UltraloqEntity, BinarySensorEntity):

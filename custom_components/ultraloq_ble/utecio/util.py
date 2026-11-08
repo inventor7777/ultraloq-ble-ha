@@ -46,8 +46,8 @@ def bytes_to_int2(byte_array: bytes) -> int:
 
 def parse_autolock_response(
     data: bytes | bytearray, *, bt264: bool = False
-) -> tuple[int, bool | None, int]:
-    """Decode auto-lock time, enabled state, and mode from a BLE response."""
+) -> tuple[int, int]:
+    """Decode auto-lock time and mode from a BLE response."""
 
     if len(data) < 2:
         raise ValueError(
@@ -58,10 +58,9 @@ def parse_autolock_response(
     if bt264:
         # The trailing setting is unidentified; byte 2 contains mode, not enabled.
         mode = int(data[2]) if len(data) >= 3 else -1
-        return autolock_time, None, mode
-    enabled = bool(data[2]) if len(data) >= 3 else autolock_time > 0
+        return autolock_time, mode
     mode = int(data[3]) if len(data) >= 4 else -1
-    return autolock_time, enabled, mode
+    return autolock_time, mode
 
 
 def parse_model_response(data: bytes | bytearray) -> tuple[str, str]:

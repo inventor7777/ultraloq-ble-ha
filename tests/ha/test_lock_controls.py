@@ -9,7 +9,6 @@ from pytest_homeassistant_custom_component.common import (
     mock_integration,
 )
 
-from custom_components.ultraloq_ble.binary_sensor import UltraloqAutolockSensor
 from custom_components.ultraloq_ble.const import CONF_API_DEVICES, DOMAIN
 from custom_components.ultraloq_ble.sensor import SENSORS, UltraloqSensor
 from custom_components.ultraloq_ble.utecio import known_devices
@@ -29,6 +28,7 @@ from custom_components.ultraloq_ble.utecio.util import (
 )
 from homeassistant.const import Platform
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
@@ -90,16 +90,16 @@ async def test_work_mode_framing_and_status_only_ack(model):
 @pytest.mark.parametrize(
     "payload,expected",
     [
-        ("3c000001", (60, None, 0)),
-        ("3c000100", (60, None, 1)),
-        ("00000001", (0, None, 0)),
-        ("3c00", (60, None, -1)),
+        ("3c000001", (60, 0)),
+        ("3c000100", (60, 1)),
+        ("00000001", (0, 0)),
+        ("3c00", (60, -1)),
     ],
 )
 def test_bt264_autolock_fields(payload, expected):
     assert parse_autolock_response(bytes.fromhex(payload), bt264=True) == expected
     # Preserve non-bt264 models' existing response layout.
-    assert parse_autolock_response(bytes.fromhex("3c000001")) == (60, False, 1)
+    assert parse_autolock_response(bytes.fromhex("3c000001")) == (60, 1)
 
 
 async def test_identification_and_autolock_responses():
@@ -112,12 +112,7 @@ async def test_identification_and_autolock_responses():
     await response(
         lock, BLECommandCode.GET_AUTOLOCK, bytes.fromhex("3c000001")
     )._read_response()
-    assert (lock.autolock_time, lock.autolock_enabled, lock.autolock_mode) == (
-        60,
-        None,
-        0,
-    )
-    assert not UltraloqAutolockSensor(lock).available
+    assert (lock.autolock_time, lock.autolock_mode) == (60, 0)
     lock._ha_available = False
     for description in SENSORS:
         if description.key in {"model", "firmware_version"}:
@@ -130,8 +125,8 @@ async def test_autolock_response_layout_by_capability(model):
     await response(
         lock, BLECommandCode.GET_AUTOLOCK, bytes.fromhex("3c000001")
     )._read_response()
-    expected = (60, None, 0) if lock.capabilities.bt264 else (60, False, 1)
-    assert (lock.autolock_time, lock.autolock_enabled, lock.autolock_mode) == expected
+    expected = (60, 0) if lock.capabilities.bt264 else (60, 1)
+    assert (lock.autolock_time, lock.autolock_mode) == expected
 
 
 @pytest.mark.parametrize(
@@ -183,18 +178,30 @@ async def test_ha_entities_and_mute_failure(hass):
         data={"email": "fixture", "password": "fixture", CONF_API_DEVICES: []},
     )
     entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    retired = registry.async_get_or_create(
+        "binary_sensor",
+        DOMAIN,
+        f"ul_{lock.mac_uuid}_autolock",
+        config_entry=entry,
+        suggested_object_id="front_door_autolock",
+    )
     mock_integration(
         hass, MockModule("bluetooth_adapters", async_setup=AsyncMock(return_value=True))
     )
     with (
         patch(
             "custom_components.ultraloq_ble.PLATFORMS",
-            [Platform.SENSOR, Platform.SWITCH],
+            [Platform.SENSOR, Platform.SWITCH, Platform.BINARY_SENSOR],
         ),
         patch("custom_components.ultraloq_ble._build_ble_devices", return_value=[lock]),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
+        assert registry.async_get(retired.entity_id) is None
+        assert hass.states.get(retired.entity_id) is None
+        assert hass.states.get("sensor.front_door_autolock_time") is not None
+        assert hass.states.get("sensor.front_door_autolock_mode") is not None
         assert hass.states.get("sensor.front_door_model").state == "U-Bolt"
         assert (
             hass.states.get("sensor.front_door_firmware_version").state == "02.28.0020"

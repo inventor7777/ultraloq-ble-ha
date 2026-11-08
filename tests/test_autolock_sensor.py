@@ -18,7 +18,4 @@ assert 'AUTOLOCK_MODES = {0: "Door Sensor", 1: "Immediate"}' in source
 assert "AUTOLOCK_MODES.get(lock.autolock_mode)" in source
 assert 'description.key.startswith("autolock_")' in source
 assert "not lock.capabilities.autolock" in source
-assert "class UltraloqAutolockSensor" in binary_source
-assert 'super().__init__(lock, "autolock")' in binary_source
-assert "self.lock.autolock_enabled is not None" in binary_source
-assert "bool(self.lock.autolock_enabled)" in binary_source
+assert "class UltraloqAutolockSensor" not in binary_source
