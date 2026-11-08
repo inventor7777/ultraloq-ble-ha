@@ -49,6 +49,8 @@ class BLECommandCode(Enum):
     GET_BATTERY = 67
     GET_SN = 94
     GET_MUTE = 83
+    SET_MUTE = 84
+    GET_MODEL = 93
     UNLOCK = 85
     BOLT_LOCK = 86
     SET_LOCK_STATUS = 82
@@ -71,6 +73,8 @@ class BleResponseCode(Enum):
     SET_LOCK_STATUS = 210
     GET_SN = 222
     GET_MUTE = 211
+    SET_MUTE = 212
+    GET_MODEL = 221
     DOORSENSOR = 245
     SET_AUTOLOCK = 217
     GET_AUTOLOCK = 218

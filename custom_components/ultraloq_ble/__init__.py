@@ -132,6 +132,8 @@ async def _async_handle_get_device_information(
         "device": {
             "name": lock.name,
             "model": lock.model,
+            "reported_model": lock.reported_model or None,
+            "firmware_version": lock.firmware_version or None,
             "serial_number": lock.sn or None,
             "bluetooth_address": str(lock.mac_uuid),
             "wake_address": str(lock.wurx_uuid) if lock.wurx_uuid else None,

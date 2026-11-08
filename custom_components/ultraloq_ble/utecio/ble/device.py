@@ -24,6 +24,7 @@ from ..util import (
     date_from_4bytes,
     decode_password,
     parse_autolock_response,
+    parse_model_response,
 )
 
 RESPONSE_TIMEOUT_SECONDS = 15
@@ -107,6 +108,9 @@ class UtecBleDevice:
         self.password: str = password
         self.name = device_name
         self.model: str = device_model
+        self.reported_model: str = ""
+        self.firmware_version: str = ""
+        self._model_info_queried = False
         self.capabilities: DeviceDefinition | Any = self._resolve_capabilities(
             device_model
         )
@@ -164,6 +168,7 @@ class UtecBleDevice:
         if json_config["params"]["extend_ble"]:
             new_device.wurx_uuid = json_config["params"]["extend_ble"]
         new_device.sn = json_config["params"]["serialnumber"]
+        new_device.firmware_version = json_config["params"].get("version", "")
         new_device.model = json_config["model"]
         new_device.config = json_config
         logger.debug(
@@ -546,6 +551,12 @@ class UtecBleRequest:
     def _build_packet(self) -> None:
         """Build the current request buffer from scratch."""
 
+        if (
+            self.command == BLECommandCode.SET_LOCK_STATUS
+            and self.device is not None
+            and self.device.capabilities.bt264
+        ):
+            self.auth_required = False
         self._auth_appended = False
         self.buffer = bytearray(5120)
         self.buffer[0] = 0x7F
@@ -686,6 +697,8 @@ class UtecBleRequest:
                     BLECommandCode.UNLOCK,
                     BLECommandCode.BOLT_LOCK,
                     BLECommandCode.SET_LOCK_STATUS,
+                    BLECommandCode.SET_MUTE,
+                    BLECommandCode.GET_MUTE,
                     BLECommandCode.SET_AUTOLOCK,
                     BLECommandCode.SET_WORK_MODE,
                 }
@@ -837,7 +850,10 @@ class UtecBleResponse:
                 )
 
             elif self.command == BleResponseCode.SET_LOCK_STATUS:
-                self.device.lock_mode = self.data[0]
+                # This firmware acknowledges the write with status only.
+                self.device.lock_mode = (
+                    self.data[0] if self.data else self.request.data[0]
+                )
                 self.device.debug(
                     f"({self.device.mac_uuid}) workmode:{self.device.lock_mode}"
                 )
@@ -853,7 +869,9 @@ class UtecBleResponse:
                     self.device.autolock_time,
                     self.device.autolock_enabled,
                     self.device.autolock_mode,
-                ) = parse_autolock_response(self.data)
+                ) = parse_autolock_response(
+                    self.data, bt264=self.device.capabilities.bt264
+                )
                 self.device.debug(
                     "(%s) autolock:%s mode:%s enabled:%s",
                     self.device.mac_uuid,
@@ -881,6 +899,11 @@ class UtecBleResponse:
                 self.device.sn = bytes_to_ascii(self.data) or ""
                 self.device.debug(
                     "(%s) serial:%s", self.device.mac_uuid, self.device.sn
+                )
+
+            elif self.command == BleResponseCode.GET_MODEL:
+                self.device.reported_model, self.device.firmware_version = (
+                    parse_model_response(self.data)
                 )
 
             elif self.command == BleResponseCode.READ_TIME:

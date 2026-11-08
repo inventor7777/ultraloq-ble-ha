@@ -3,7 +3,12 @@ import datetime
 
 from ..enums import BLECommandCode, DeviceLockWorkMode
 from ..util import date_from_4bytes, date_to_4bytes, to_byte_array
-from .device import UtecBleDevice, UtecBleRequest
+from .device import (
+    UtecBleDevice,
+    UtecBleDeviceError,
+    UtecBleNotFoundError,
+    UtecBleRequest,
+)
 
 STATUS_SETTLE_SECONDS = 4
 
@@ -91,6 +96,23 @@ class UtecBleLock(UtecBleDevice):
             lambda: self.add_request(UtecBleRequest(BLECommandCode.REBOOT))
         )
 
+    async def async_set_mute(self, muted: bool) -> None:
+        """Set mute and read the actual setting back in the same connection."""
+
+        if not self.capabilities.mutemode:
+            raise ValueError(f"{self.name} does not support mute.")
+
+        def queue():
+            self.add_request(UtecBleRequest(BLECommandCode.ADMIN_LOGIN))
+            self.add_request(
+                UtecBleRequest(BLECommandCode.SET_MUTE, data=bytes([muted]))
+            )
+            self.add_request(UtecBleRequest(BLECommandCode.GET_MUTE))
+
+        await self.execute_requests(queue)
+        if self.mute != muted:
+            raise UtecBleDeviceError("Lock did not confirm the requested mute setting.")
+
     async def async_get_device_information(self) -> dict[str, dict[str, str]]:
         """Probe supported information without aborting after one failure."""
 
@@ -105,6 +127,8 @@ class UtecBleLock(UtecBleDevice):
             commands.append(BLECommandCode.GET_MUTE)
         if self.capabilities.havesn:
             commands.append(BLECommandCode.GET_SN)
+        if self.capabilities.needreadmodel:
+            commands.append(BLECommandCode.GET_MODEL)
         if not self.capabilities.bt264:
             commands.append(BLECommandCode.READ_TIME)
         if self.capabilities.doorsensor:
@@ -229,5 +253,18 @@ class UtecBleLock(UtecBleDevice):
 
         updated = await self.execute_requests(queue, skip_if_busy)
         if updated:
+            if self.capabilities.needreadmodel and not self._model_info_queried:
+                # shortcut: query static identification once per load; retry via Get device information.
+                self._model_info_queried = True
+                try:
+                    await self.execute_requests(
+                        lambda: self.add_request(
+                            UtecBleRequest(BLECommandCode.GET_MODEL)
+                        )
+                    )
+                except (UtecBleDeviceError, UtecBleNotFoundError, TimeoutError) as err:
+                    self.debug(
+                        "Could not read identification from %s: %s", self.name, err
+                    )
             self.debug("(%s) %s - Update Successful.", self.mac_uuid, self.name)
         return updated

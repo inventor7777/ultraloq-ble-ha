@@ -55,5 +55,5 @@ response_source = ast.unparse(
         if isinstance(node, ast.ClassDef) and node.name == "UtecBleResponse"
     )
 )
-assert "parse_autolock_response(self.data)" in response_source
+assert "bt264=self.device.capabilities.bt264" in response_source
 assert "if len(data) >= 5" in response_source

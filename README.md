@@ -23,10 +23,13 @@ Entities currently exposed per lock (when supported by your lock):
 - `sensor.autolock_time`
 - `sensor.autolock_mode`
 - `sensor.last_successful_communication`
-- `binary_sensor.autolock` (reads the enabled byte when supplied; firmware that returns only auto-lock time is considered enabled when that time is nonzero)
+- `sensor.model`
+- `sensor.firmware_version`
+- `binary_sensor.autolock` (unavailable on `bt264` models, whose separate enabled flag has not been identified)
 - `binary_sensor.door`
 - `binary_sensor.sound`
 - `select.lock_mode`
+- `switch.mute` (`mdi:volume-mute`; on means sounds are muted)
 - `button.rescan`
 - `button.restart`
 
@@ -86,17 +89,21 @@ Each lock may expose:
 - `sensor.autolock_time`: read-only auto-lock delay in whole seconds.
 - `sensor.autolock_mode`: reports Immediate or Door Sensor mode.
 - `sensor.last_successful_communication`: timestamp of the last valid, successful BLE response from the lock.
-- `binary_sensor.autolock`: reports the lock's auto-lock enabled state from its BLE response (`00` is off; a nonzero value is on).
+- `sensor.model`: diagnostic model identification from BLE when supported, otherwise the configured model. The original Pro firmware reports the family name `U-Bolt`; this does not change the integration's model capability mapping.
+- `sensor.firmware_version`: diagnostic firmware version, initially from cached cloud metadata when present. Models with model-read support attempt a BLE identification read once after the first successful status poll per integration load; **Get device information** can retry it. Unsupported or malformed responses retain the existing version.
+- `binary_sensor.autolock`: reports the enabled state on non-`bt264` models using the existing response layout. On `bt264` models it remains unavailable: the response layout recovered from U-Bolt firmware contains duration and mode, but its trailing byte's meaning is unknown.
 - `binary_sensor.door`: reports open or closed on models with door-sensor support.
 - `binary_sensor.sound`: reports whether lock sounds are enabled on models with mute-mode support.
 - `select.lock_mode`: contains only the modes supported by that model.
+- `switch.mute`: mutes sounds when on, using admin login followed by a write and confirmation read. It is created for models declaring mute support; the existing Sound binary sensor remains available.
 - `button.rescan`: immediately requests fresh state over BLE.
 - `button.restart`: reboots the lock over BLE.
 
 Notes:
 
-- Availability is shared across a lock's BLE entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted. Cloud Battery Level is independent of BLE availability.
+- Availability is shared across a lock's BLE entities, except the Rescan and Restart buttons, which remain available so recovery can be attempted. Model, Firmware Version, Last Successful Communication, and Cloud Battery Level remain visible independently of BLE availability.
 - Capability-dependent entities are only created when the model mapping reports support.
+- The work-mode framing and auto-lock field corrections apply to all models marked `bt264` in the capability table, including the generic fallback for unknown models. Non-`bt264` models retain their existing layouts. The corrections were derived from official U-Bolt `02.28.0020` firmware; their application to the rest of the `bt264` family still needs hardware validation.
 
 ### Cloud Battery Level (optional)
 

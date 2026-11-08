@@ -50,6 +50,8 @@ class UltraloqEntity(Entity):
         }
         if self.lock.sn:
             info["serial_number"] = self.lock.sn
+        if getattr(self.lock, "firmware_version", ""):
+            info["sw_version"] = self.lock.firmware_version
         return info
 
     async def async_added_to_hass(self) -> None:

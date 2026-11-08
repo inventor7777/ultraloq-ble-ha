@@ -44,6 +44,18 @@ def _battery_level(lock: UtecBleLock) -> str | None:
 
 SENSORS: tuple[UltraloqSensorDescription, ...] = (
     UltraloqSensorDescription(
+        key="model",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:information-outline",
+        value_fn=lambda lock: getattr(lock, "reported_model", "") or lock.model or None,
+    ),
+    UltraloqSensorDescription(
+        key="firmware_version",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:chip",
+        value_fn=lambda lock: getattr(lock, "firmware_version", "") or None,
+    ),
+    UltraloqSensorDescription(
         key="battery_level",
         device_class=SensorDeviceClass.ENUM,
         options=[level.name for level in DeviceBatteryLevel if level.name != "NOTSET"],
@@ -130,10 +142,11 @@ class UltraloqSensor(UltraloqEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Keep the last communication visible while the lock is offline."""
+        """Keep identification and last communication visible while offline."""
 
         return (
-            self.entity_description.key == "last_successful_communication"
+            self.entity_description.key
+            in {"last_successful_communication", "model", "firmware_version"}
             or super().available
         )
 

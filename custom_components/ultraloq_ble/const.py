@@ -18,6 +18,7 @@ PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.SELECT,
+    Platform.SWITCH,
 ]
 
 DEFAULT_NAME = "Ultraloq BLE"
